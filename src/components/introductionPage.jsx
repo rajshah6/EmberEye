@@ -250,6 +250,7 @@ const IntroductionPage = () => {
     }
   }, [wildfires, redSpreads, mapLoaded]);
 
+  //GENERATED COHERE TEXT NOT SHOWING, VARIABLE DATA IS BEING RECEIVED SO API WORKS HOWEVER FRONT IS NOT SHOWING THIS GENERATED TEXT
   const MarkerPopup = () => {
     const [aiDescription, setAiDescription] = useState('');
     const [isLoading, setIsLoading] = useState(false);
