@@ -481,63 +481,68 @@ const IntroductionPage = () => {
   };
 
   return (
-    <div className="flex h-screen bg-gray-900">
-      <div className="w-1/3 p-8 overflow-y-auto">
-        <h1 className="text-3xl font-bold mb-4 text-white">Welcome {username}!</h1>
-        <p className="text-lg mb-4 text-gray-300">This is where the content goes.</p>
-
-        <div className="flex space-x-4">
-          
-          
-          <button
-            onClick={() => navigate('/login')}
-            className="bg-red-500 text-white font-bold py-2 px-4 rounded-lg shadow-lg hover:bg-red-600 transition duration-200"
-          >
-            Log Out
-          </button>
+    <div className="flex h-screen overflow-auto bg-gray-900">
+      {/* Sidebar */}
+      <div className="w-1/3 p-8 flex flex-col h-full overflow-y-auto">
+        {/* Header section */}
+        <div className="flex-shrink-0">
+          <h1 className="text-3xl font-bold mb-4 text-white">Welcome {username}!</h1>
+          <p className="text-lg mb-4 text-gray-300">This is where the content goes.</p>
+  
+          <div className="flex space-x-4">
+            <button
+              onClick={() => navigate('/login')}
+              className="bg-red-500 text-white font-bold py-2 px-4 rounded-lg shadow-lg hover:bg-red-600 transition duration-200"
+            >
+              Log Out
+            </button>
+          </div>
+  
+          {locationError && <p className="text-red-400 mt-2">{locationError}</p>}
         </div>
-
-        {locationError && (
-          <p className="text-red-400 mt-2">{locationError}</p>
-        )}
-
-        <div className="mt-6 text-gray-300">
-          <h2 className="text-xl font-bold">Wildfire Information</h2>
-          <p className="text-sm text-gray-400">
+  
+        {/* Scrollable wildfire list */}
+        <div className="flex-grow mt-6 text-gray-300 overflow-y-auto">
+          <h2 className="text-xl font-bold mb-2">Wildfire Information</h2>
+          <p className="text-sm text-gray-400 mb-2">
             Total: {wildfires.length} | Visible: {visibleMarkerCounts.wildfires}
           </p>
-          {wildfires.length === 0 ? (
-            <p>No wildfire information available</p>
-          ) : (
-            <ul className="space-y-2 mt-2">
-              {wildfires.slice(0, 10).map((wildfire, index) => (
-                <li key={`wildfire-${index}`} className="p-2 bg-gray-800 rounded">
-                  <p><strong>Type:</strong> {wildfire.type}</p>
-                  <p><strong>Location:</strong> {Array.isArray(wildfire.location) ? wildfire.location.join(', ') : 'Invalid location'}</p>
-                </li>
-              ))}
-              {wildfires.length > 10 && (
-                <li className="p-2 bg-gray-800 rounded text-center">
-                  + {wildfires.length - 10} more wildfires
-                </li>
-              )}
-            </ul>
-          )}
+          <ul className="space-y-2 pr-2">
+            {wildfires.slice(0, 10).map((wildfire, index) => (
+              <li key={`wildfire-${index}`} className="p-2 bg-gray-800 rounded">
+                <p>
+                  <strong>Location:</strong>{' '}
+                  {Array.isArray(wildfire.location) ? wildfire.location.join(', ') : 'Invalid location'}
+                </p>
+              </li>
+            ))}
+            {wildfires.length > 10 && (
+              <li className="p-2 bg-gray-800 rounded text-center">
+                + {wildfires.length - 10} more wildfires
+              </li>
+            )}
+          </ul>
         </div>
-
+  
         {isAddingMarkers && (
           <div className="fixed bottom-4 left-4 bg-blue-900 text-white px-4 py-2 rounded-lg">
             Loading markers...
           </div>
         )}
       </div>
-
-      <div className="w-2/3 h-screen relative">
-        <div ref={mapContainerRef} style={{ ...mapStyles.absoluteFill, ...mapStyles.mapContainer}} />
+  
+      {/* Map container */}
+      <div className="w-2/3 h-full relative">
+        <div
+          ref={mapContainerRef}
+          style={{ ...mapStyles.absoluteFill, ...mapStyles.mapContainer }}
+        />
         <MarkerPopup />
       </div>
     </div>
   );
+  
+  
 };
 
 export default IntroductionPage;
