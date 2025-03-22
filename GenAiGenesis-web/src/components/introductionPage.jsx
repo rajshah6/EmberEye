@@ -290,9 +290,19 @@ const IntroductionPage = () => {
             const data = await response.json();
             console.log('Cohere API Response:', data); // For debugging
             
-            if (data.generations && data.generations.length > 0 && data.generations[0].text) {
-                setAiDescription(data.generations[0].text.trim());
+            // Check for different possible response structures
+            if (data.text) {
+                setAiDescription(data.text.trim());
+            } else if (data.generations && data.generations.length > 0) {
+                if (data.generations[0].text) {
+                    setAiDescription(data.generations[0].text.trim());
+                } else if (data.generations[0].generated_text) {
+                    setAiDescription(data.generations[0].generated_text.trim());
+                }
+            } else if (data.output && data.output.text) {
+                setAiDescription(data.output.text.trim());
             } else {
+                console.error('Unexpected API response structure:', data);
                 setError('No insights generated. Please try again.');
             }
         } catch (error) {
