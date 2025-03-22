@@ -34,25 +34,21 @@ def fetch_wildfire_coordinates():
         return []
 
 def get_wind_data(lat, lon):
-    NOAA_API_URL = f"https://api.weather.gov/points/{lat},{lon}"
-    headers = {"User-Agent": "MyWeatherApp"}  # Required by NOAA API
-    response = requests.get(NOAA_API_URL, headers=headers)
-
-    if response.status_code == 200:
-        data = response.json()
-        forecast_url = data["properties"]["forecastHourly"]  # Get hourly forecast link
-
-        # Fetch hourly forecast data
-        forecast_response = requests.get(forecast_url, headers=headers)
-        if forecast_response.status_code == 200:
-            forecast_data = forecast_response.json()
-            wind_info = forecast_data["properties"]["periods"][0]  # Current period
+    OPENWEATHER_API_KEY = "YOUR_API_KEY_HERE"  # Replace with your OpenWeatherMap API key
+    url = f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={OPENWEATHER_API_KEY}&units=metric"
+    
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
+            data = response.json()
             return {
-                "wind_speed": wind_info["windSpeed"],
-                "wind_direction": wind_info["windDirection"],
-                "temperature": wind_info["temperature"],
-                "humidity": wind_info.get("relativeHumidity", {}).get("value", "N/A"),
+                "wind_speed": f"{data['wind']['speed']} m/s",
+                "wind_direction": data['wind']['deg'],
+                "temperature": data['main']['temp'],
+                "humidity": data['main']['humidity']
             }
+    except Exception as e:
+        print(f"Error fetching weather data: {e}")
     return None
 
 def reset_and_add_wildfire_coords():
