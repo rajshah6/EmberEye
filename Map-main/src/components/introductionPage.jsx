@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import { useLocation, Link, useNavigate } from "react-router-dom";
+import "../styles/customScrollbar.css";
 
 const mapStyles = {
   mapContainer: {
@@ -600,7 +601,7 @@ const IntroductionPage = () => {
         </div>
 
         {/* Scrollable wildfire list */}
-        <div className="flex-grow mt-6 text-gray-300 overflow-y-auto">
+        <div className="flex-grow mt-6 text-gray-300 overflow-y-auto custom-scrollbar">
           <h2 className="text-xl font-bold mb-2">Wildfires Near You</h2>
           <p className="text-sm text-gray-400 mb-2">
             Total: {wildfires.length} | Visible: {visibleMarkerCounts.wildfires}
@@ -618,18 +619,32 @@ const IntroductionPage = () => {
                       wildfire.location.length === 2
                     ) {
                       const [longitude, latitude] = wildfire.location;
+
+                      // Fly to the location
                       mapRef.current.flyTo({
                         center: [longitude, latitude],
                         zoom: 12,
                         speed: 1.5,
                       });
-                      setSelectedMarker({
-                        ...wildfire,
-                        markerType: "wildfire",
-                      });
-                      setShowPopup(true);
+
+                      // Add a listener to show the popup after the map animation ends
+                      const handleMoveEnd = () => {
+                        setSelectedMarker({
+                          ...wildfire,
+                          markerType: "wildfire",
+                        });
+                        setShowPopup(true);
+
+                        // Remove the event listener after it's triggered
+                        mapRef.current.off("moveend", handleMoveEnd);
+                      };
+
+                      mapRef.current.on("moveend", handleMoveEnd);
                     } else {
-                      console.warn("Invalid location:", wildfire.location);
+                      console.warn(
+                        "Invalid wildfire location:",
+                        wildfire.location
+                      );
                     }
                   }}
                 >
