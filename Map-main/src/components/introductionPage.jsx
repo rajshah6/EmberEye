@@ -41,7 +41,7 @@ const IntroductionPage = () => {
 
   const fetchWildfires = async () => {
     try {
-      const response = await fetch('http://localhost:5000/wildfires');
+      const response = await fetch('https://genesisw23-5c5848ef2953.herokuapp.com/wildfires');
       if (!response.ok) throw new Error('Failed to fetch wildfires');
       const data = await response.json();
       setWildfires(data);
@@ -74,7 +74,7 @@ const IntroductionPage = () => {
     setIsSpreadLoading(true);
     try {
       // Send all the data of the selected marker to the API
-      const response = await fetch('http://localhost:5000/get_red_spread', {
+      const response = await fetch('https://genesisw23-5c5848ef2953.herokuapp.com/get_red_spread', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
