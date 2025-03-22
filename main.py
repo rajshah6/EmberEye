@@ -1,14 +1,8 @@
-import os
-import requests
-import csv
-from io import StringIO
+
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
-from fastai.vision.all import *
-import cohere
-import google.generativeai as genai
 from google import genai
 
 
