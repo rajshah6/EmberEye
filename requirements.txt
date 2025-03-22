@@ -3,7 +3,7 @@ Flask-Cors==5.0.0
 pymongo==4.11.3
 requests==2.32.3
 google==3.0.0
-thinc==8.1.10
+thinc>=8.2.0  # Upgraded to support Pydantic 2+
 gunicorn==23.0.0
 google-ai-generativelanguage==0.6.15
 google-api-core==2.24.2
@@ -12,3 +12,4 @@ google-auth==2.38.0
 google-auth-httplib2==0.2.0
 google-genai==1.7.0
 google-generativeai==0.8.4
+pydantic>=2.0.0,<3.0.0  # Ensuring compatibility
