@@ -20,17 +20,18 @@ const mapStyles = {
 
 const IntroductionPage = () => {
   const [wildfires, setWildfires] = useState([]);
-  const [redSpreads, setRedSpreads] = useState([]);
   const [locationError, setLocationError] = useState('');
   const [mapLoaded, setMapLoaded] = useState(false);
   const [selectedMarker, setSelectedMarker] = useState(null);
   const [showPopup, setShowPopup] = useState(false);
   const [isAddingMarkers, setIsAddingMarkers] = useState(false);
-  const [visibleMarkerCounts, setVisibleMarkerCounts] = useState({ wildfires: 0, redSpreads: 0 });
+  const [visibleMarkerCounts, setVisibleMarkerCounts] = useState({ wildfires: 0 });
+  const [isSpreadLoading, setIsSpreadLoading] = useState(false);
   const mapRef = useRef(null);
   const mapContainerRef = useRef(null);
   const markersRef = useRef([]);
-  const markerDataRef = useRef({ wildfires: [], redSpreads: [] });
+  const spreadLayersRef = useRef([]);
+  const markerDataRef = useRef({ wildfires: [] });
   const visibleBoundsRef = useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
@@ -50,57 +51,181 @@ const IntroductionPage = () => {
     }
   };
 
-  const fetchRedSpread = async () => {
-    try {
-      const response = await fetch('http://localhost:5000/get_red_spread');
-      if (!response.ok) throw new Error('Failed to fetch red spread');
-      const data = await response.json();
-      setRedSpreads(data);
-      markerDataRef.current.redSpreads = data;
-    } catch (error) {
-      console.error('Error fetching red spread:', error);
-    }
-  };
-
-  // Check if a location is within the current map bounds
   const isInBounds = (location) => {
     if (!visibleBoundsRef.current || !location || !Array.isArray(location) || location.length !== 2) {
       return false;
     }
     
     const [lng, lat] = location;
+    
+    if (typeof lng !== 'number' || typeof lat !== 'number' || 
+        isNaN(lng) || isNaN(lat) ||
+        lat < -90 || lat > 90 || 
+        lng < -180 || lng > 180) {
+      return false;
+    }
+    
     return visibleBoundsRef.current.contains([lng, lat]);
+  };
+
+  const fetchSpreadData = async () => {
+    if (!mapRef.current || !selectedMarker) return;
+  
+    setIsSpreadLoading(true);
+    try {
+      // Send all the data of the selected marker to the API
+      const response = await fetch('http://localhost:5000/get_red_spread', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          location: selectedMarker.location,
+          temperature: selectedMarker.temperature,
+          humidity: selectedMarker.humidity,
+          wind_speed: selectedMarker.wind_speed,
+          wind_direction: selectedMarker.wind_direction,
+          rain: selectedMarker.rain,
+          clouds: selectedMarker.clouds,
+          wind_gust: selectedMarker.wind_gust,
+        }),
+      });
+  
+      if (!response.ok) throw new Error('Failed to fetch spread data');
+  
+      const data = await response.json();
+  
+      // Remove previous spread layers
+      spreadLayersRef.current.forEach(layerId => {
+        if (mapRef.current.getLayer(layerId)) {
+          mapRef.current.removeLayer(layerId);
+        }
+        if (mapRef.current.getSource(layerId)) {
+          mapRef.current.removeSource(layerId);
+        }
+      });
+      spreadLayersRef.current = [];
+  
+      // Add new spread point as a circular area
+      if (data.latitude && data.longitude) {
+        const spreadPointId = `spread-point-${Date.now()}`;
+        const spreadAreaId = `spread-area-${Date.now()}`;
+  
+        // Create a source for the center point
+        mapRef.current.addSource(spreadPointId, {
+          type: 'geojson',
+          data: {
+            type: 'Feature',
+            geometry: {
+              type: 'Point',
+              coordinates: [data.longitude, data.latitude],
+            },
+            properties: {
+              description: 'Spread Point',
+            },
+          },
+        });
+  
+        // Create a source for the spread area
+        mapRef.current.addSource(spreadAreaId, {
+          type: 'geojson',
+          data: {
+            type: 'Feature',
+            geometry: {
+              type: 'Point',
+              coordinates: [data.longitude, data.latitude],
+            },
+          },
+        });
+  
+        // Add a large circle to represent the spread area
+        mapRef.current.addLayer({
+          id: spreadAreaId,
+          type: 'circle',
+          source: spreadAreaId,
+          paint: {
+            // Convert spread_radius to pixels using the proper scale
+            // Assuming spread_radius is in meters, we need to adjust based on zoom level
+            'circle-radius': {
+              'base': 2,
+              'stops': [
+                [0, 0],
+                [7, data.spread_radius / 100],
+                [10, data.spread_radius / 30],
+                [15, data.spread_radius / 10],
+                [20, data.spread_radius / 2]
+              ]
+            },
+            'circle-color': '#de8162',
+            'circle-opacity': 0.3,
+            'circle-stroke-width': 2,
+            'circle-stroke-color': '#FF0000',
+            'circle-stroke-opacity': 0.6
+          },
+        });
+  
+        // Add a small point for the center
+        mapRef.current.addLayer({
+          id: spreadPointId,
+          type: 'circle',
+          source: spreadPointId,
+          paint: {
+            'circle-radius': 5,
+            'circle-color': '#de8162',
+            'circle-opacity': 0.8,
+            'circle-stroke-width': 1,
+            'circle-stroke-color': '#FFFFFF',
+          },
+        });
+  
+        spreadLayersRef.current.push(spreadPointId, spreadAreaId);
+  
+        // Fly to the new point with appropriate zoom level to see the spread
+        mapRef.current.flyTo({
+          center: [data.longitude, data.latitude],
+          zoom: 12,
+          speed: 1.5,
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching spread data:', error);
+    } finally {
+      setIsSpreadLoading(false);
+    }
   };
 
   const addMarkers = () => {
     if (!mapRef.current || isAddingMarkers) return;
     
     setIsAddingMarkers(true);
-    
-    // Get current map bounds
     visibleBoundsRef.current = mapRef.current.getBounds();
     
-    // Clear existing markers
     markersRef.current.forEach(marker => marker.remove());
     markersRef.current = [];
     
-    // Track visible markers by type
     let visibleWildfires = 0;
-    let visibleRedSpreads = 0;
     
-    // Create worker for batch processing
-    const addMarkersInBatches = async (data, isWildfire) => {
-      // Only add markers that are in the current viewport
-      const markersToAdd = data.filter(item => isInBounds(item.location));
+    const addMarkersInBatches = async (data) => {
+      const markersToAdd = data.filter(item => {
+        if (!item.location || !Array.isArray(item.location) || item.location.length !== 2) {
+          return false;
+        }
+        
+        const [lng, lat] = item.location;
+        
+        if (typeof lng !== 'number' || typeof lat !== 'number' || 
+            isNaN(lng) || isNaN(lat) || 
+            lat < -90 || lat > 90 || 
+            lng < -180 || lng > 180) {
+          console.warn('Invalid coordinates:', item.location);
+          return false;
+        }
+        
+        return isInBounds(item.location);
+      });
       
-      // Update counts
-      if (isWildfire) {
-        visibleWildfires = markersToAdd.length;
-      } else {
-        visibleRedSpreads = markersToAdd.length;
-      }
+      visibleWildfires = markersToAdd.length;
       
-      // Process in batches of 100
       const batchSize = 100;
       const batches = Math.ceil(markersToAdd.length / batchSize);
       
@@ -109,61 +234,41 @@ const IntroductionPage = () => {
         const end = Math.min(start + batchSize, markersToAdd.length);
         const batch = markersToAdd.slice(start, end);
         
-        // Add batch of markers
         batch.forEach((item) => {
-          if (item.location && Array.isArray(item.location) && item.location.length === 2) {
-            const [longitude, latitude] = item.location;
+          const [longitude, latitude] = item.location;
+          
+          try {
+            const marker = new mapboxgl.Marker({ color: "#FF0000" })
+              .setLngLat([longitude, latitude])
+              .addTo(mapRef.current);
             
-            if (isWildfire) {
-              const marker = new mapboxgl.Marker({ color: "#FF0000" })
-                .setLngLat([longitude, latitude])
-                .addTo(mapRef.current);
-              
-              marker.getElement().addEventListener('click', () => {
-                setSelectedMarker({
-                  ...item,
-                  markerType: 'wildfire'
-                });
-                setShowPopup(true);
+            marker.getElement().addEventListener('click', () => {
+              setSelectedMarker({
+                ...item,
+                markerType: 'wildfire'
               });
-              
-              markersRef.current.push(marker);
-            } else {
-              // Create custom red dot element
-              const el = document.createElement('div');
-              el.style.backgroundColor = '#FF0000';
-              el.style.width = '10px';
-              el.style.height = '10px';
-              el.style.borderRadius = '50%';
-              el.style.cursor = 'pointer';
-              
-              const marker = new mapboxgl.Marker(el)
-                .setLngLat([longitude, latitude])
-                .addTo(mapRef.current);
-              
-              markersRef.current.push(marker);
-            }
+              setShowPopup(true);
+            });
+            
+            markersRef.current.push(marker);
+          } catch (error) {
+            console.error('Error adding marker:', error, item);
           }
         });
         
-        // Allow browser to render and prevent UI freeze
         await new Promise(resolve => setTimeout(resolve, 0));
       }
     };
     
-    // Add markers in batches
-    Promise.all([
-      addMarkersInBatches(markerDataRef.current.wildfires, true),
-      addMarkersInBatches(markerDataRef.current.redSpreads, false)
-    ]).then(() => {
-      setIsAddingMarkers(false);
-      
-      // Update visible marker counts
-      setVisibleMarkerCounts({
-        wildfires: visibleWildfires,
-        redSpreads: visibleRedSpreads
+    addMarkersInBatches(markerDataRef.current.wildfires)
+      .then(() => {
+        setIsAddingMarkers(false);
+        setVisibleMarkerCounts({ wildfires: visibleWildfires });
+      })
+      .catch(error => {
+        console.error('Error adding markers:', error);
+        setIsAddingMarkers(false);
       });
-    });
   };
 
   const initializeMap = (longitude = 0, latitude = 0, zoom = 2) => {
@@ -190,18 +295,16 @@ const IntroductionPage = () => {
           .addTo(map);
       }
 
-      await Promise.all([fetchWildfires(), fetchRedSpread()]);
+      await fetchWildfires();
       addMarkers();
     });
     
-    // Refresh markers when map is moved
     map.on('moveend', () => {
       if (!isAddingMarkers) {
         addMarkers();
       }
     });
     
-    // Add zoom end handler to only show markers based on current viewport
     map.on('zoomend', () => {
       if (!isAddingMarkers) {
         addMarkers();
@@ -232,7 +335,6 @@ const IntroductionPage = () => {
       initializeMap();
     }
     
-    // Cleanup function
     return () => {
       if (mapRef.current) {
         mapRef.current.remove();
@@ -242,13 +344,13 @@ const IntroductionPage = () => {
   }, []);
 
   useEffect(() => {
-    if (mapLoaded && (wildfires.length > 0 || redSpreads.length > 0)) {
-      markerDataRef.current = { wildfires, redSpreads };
+    if (mapLoaded && wildfires.length > 0) {
+      markerDataRef.current = { wildfires };
       if (!isAddingMarkers) {
         addMarkers();
       }
     }
-  }, [wildfires, redSpreads, mapLoaded]);
+  }, [wildfires, mapLoaded]);
 
   const MarkerPopup = () => {
     const [aiDescription, setAiDescription] = useState('');
@@ -269,45 +371,24 @@ const IntroductionPage = () => {
             const response = await fetch("https://api.cohere.ai/generate", {
                 method: "POST",
                 headers: {
-                    "Authorization": `Bearer ${process.env.REACT_APP_COHERE_API_KEY}`,
+                    "Authorization": `Bearer ExsK01ja38y8hutQyEYh9ymJzsVSa5ig1DgscgzY`,
                     "Content-Type": "application/json"
                 },
                 body: JSON.stringify({
                     model: "command",
-                    prompt: `Generate insights for a heat anomaly detected at coordinates ${selectedMarker.location.join(', ')}. Weather conditions: Temperature ${selectedMarker.temperature}°C, Humidity ${selectedMarker.humidity}%, Wind Speed ${selectedMarker.wind_speed}, Wind Direction ${selectedMarker.wind_direction}°, Rain ${selectedMarker.rain}mm, Cloud Cover ${selectedMarker.clouds}%. Please provide a brief analysis of the potential wildfire risk and spread conditions.`,
-                    max_tokens: 150,
-                    temperature: 0.7,
-                    k: 0,
-                    stop_sequences: [],
-                    return_likelihoods: "NONE"
+                    prompt: `Generate insights for ${selectedMarker.location} which is a heat anomaly detected by NASA assumed to be a wildfire. Some more information about it is ${selectedMarker.temperature}°C, humidity: ${selectedMarker.humidity}%, wind speed: ${selectedMarker.wind_speed} m/s, wind direction: ${selectedMarker.wind_direction}°, rain ${selectedMarker.rain}mm and clouds ${selectedMarker.clouds}%. Strictly speak about the details about the wildfire in that area. Keep the length 3-5 sentences.`,
+                    max_tokens: 150
                 })
             });
             
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
             const data = await response.json();
-            console.log('Cohere API Response:', data); // For debugging
-            
-            // Check for different possible response structures
-            if (data.text) {
-                setAiDescription(data.text.trim());
-            } else if (data.generations && data.generations.length > 0) {
-                if (data.generations[0].text) {
-                    setAiDescription(data.generations[0].text.trim());
-                } else if (data.generations[0].generated_text) {
-                    setAiDescription(data.generations[0].generated_text.trim());
-                }
-            } else if (data.output && data.output.text) {
-                setAiDescription(data.output.text.trim());
+            if (data && data.text) {
+                setAiDescription(data.text);
             } else {
-                console.error('Unexpected API response structure:', data);
-                setError('No insights generated. Please try again.');
+                setError('No insights generated');
             }
         } catch (error) {
-            console.error("Error fetching Cohere data:", error);
-            setError('Failed to generate insights. Please try again later.');
+            setError('Failed to generate insights');
         } finally {
             setIsLoading(false);
         }
@@ -327,12 +408,12 @@ const IntroductionPage = () => {
           </div>
           
           <div className="text-gray-300 mb-4 mt-6">
-            {/* AI Insights Section */}
             <div className="mb-4 bg-gray-700 p-3 rounded-lg">
+              <h4 className="text-lg font-semibold mb-2 text-white">AI Insights</h4>
               {error ? (
                 <p className="text-red-400">{error}</p>
               ) : aiDescription ? (
-                <p className="text-gray-200 whitespace-pre-line">{aiDescription}</p>
+                <div className="text-gray-200 whitespace-pre-wrap">{aiDescription}</div>
               ) : isLoading ? (
                 <div className="flex items-center gap-2 text-gray-400">
                   <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -346,7 +427,6 @@ const IntroductionPage = () => {
               )}
             </div>
 
-            {/* Weather Data */}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p><strong>Location:</strong> {selectedMarker.location?.join(', ') || 'N/A'}</p>
@@ -365,13 +445,28 @@ const IntroductionPage = () => {
             </div>
           </div>
           
-          <div className="flex justify-between">
+          <div className="flex flex-wrap gap-2">
             <button 
               onClick={fetchCohereData}
               className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg disabled:opacity-50"
               disabled={isLoading}
             >
               {aiDescription ? 'Regenerate' : 'Generate Insights'}
+            </button>
+            <button 
+              onClick={fetchSpreadData}
+              className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg disabled:opacity-50"
+              disabled={isSpreadLoading}
+            >
+              {isSpreadLoading ? (
+                <div className="flex items-center gap-2">
+                  <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Spreading...
+                </div>
+              ) : 'Spread'}
             </button>
             <button 
               onClick={() => setShowPopup(false)}
@@ -385,7 +480,6 @@ const IntroductionPage = () => {
     );
   };
 
-
   return (
     <div className="flex h-screen bg-gray-900">
       <div className="w-1/3 p-8 overflow-y-auto">
@@ -393,11 +487,7 @@ const IntroductionPage = () => {
         <p className="text-lg mb-4 text-gray-300">This is where the content goes.</p>
 
         <div className="flex space-x-4">
-          <Link to="/ent">
-            <button className="bg-white text-gray-900 font-bold py-2 px-4 rounded-lg shadow-lg hover:bg-gray-200 transition duration-200">
-              Submit Test Marker
-            </button>
-          </Link>
+          
           
           <button
             onClick={() => navigate('/login')}
@@ -423,36 +513,12 @@ const IntroductionPage = () => {
               {wildfires.slice(0, 10).map((wildfire, index) => (
                 <li key={`wildfire-${index}`} className="p-2 bg-gray-800 rounded">
                   <p><strong>Type:</strong> {wildfire.type}</p>
-                  <p><strong>Location:</strong> {wildfire.location.join(', ')}</p>
+                  <p><strong>Location:</strong> {Array.isArray(wildfire.location) ? wildfire.location.join(', ') : 'Invalid location'}</p>
                 </li>
               ))}
               {wildfires.length > 10 && (
                 <li className="p-2 bg-gray-800 rounded text-center">
                   + {wildfires.length - 10} more wildfires
-                </li>
-              )}
-            </ul>
-          )}
-        </div>
-
-        <div className="mt-6 text-gray-300">
-          <h2 className="text-xl font-bold">Red Spread Information</h2>
-          <p className="text-sm text-gray-400">
-            Total: {redSpreads.length} | Visible: {visibleMarkerCounts.redSpreads}
-          </p>
-          {redSpreads.length === 0 ? (
-            <p>No Red Spread information available</p>
-          ) : (
-            <ul className="space-y-2 mt-2">
-              {redSpreads.slice(0, 10).map((redSpread, index) => (
-                <li key={`redspread-${index}`} className="p-2 bg-red-900 bg-opacity-30 rounded border border-red-700">
-                  <p><strong>Type:</strong> {redSpread.type}</p>
-                  <p><strong>Location:</strong> {redSpread.location.join(', ')}</p>
-                </li>
-              ))}
-              {redSpreads.length > 10 && (
-                <li className="p-2 bg-red-900 bg-opacity-30 rounded text-center border border-red-700">
-                  + {redSpreads.length - 10} more red spreads
                 </li>
               )}
             </ul>

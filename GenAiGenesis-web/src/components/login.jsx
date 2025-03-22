@@ -15,7 +15,7 @@ const Login = () => {
 
     // Send check request to the backend to validate credentials
     try {
-      const response = await fetch('http://127.0.0.1:5000/api/check', {
+      const response = await fetch('http://localhost:5000/api/check', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
