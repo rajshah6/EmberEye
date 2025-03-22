@@ -1,9 +1,16 @@
 import os
+import requests
+import csv
+from io import StringIO
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
 from fastai.vision.all import *
+import cohere
+import google.generativeai as genai
+from google import genai
+
 
 # MongoDB setup
 uri = "mongodb+srv://doctormali123:N14h8jnPvQF1Io5G@map.wakq4.mongodb.net/?appName=Map"
@@ -13,10 +20,11 @@ client = MongoClient(uri, server_api=ServerApi('1'))
 app = Flask(__name__)
 CORS(app)
 
-#username and passwords
+# username and passwords
 db = client["user_data"]
 collection = db["data"]
 wildfire_coordinates = db["wildfire_coord"]
+
 
 # User management functions
 def add_user(username, password):
@@ -37,7 +45,7 @@ def add_coord(location):
     }
     try:
         result = wildfire_coordinates.insert_one(data)
-        print(f"added with ID: {result.inserted_id}")
+        print(f"Added with ID: {result.inserted_id}")
     except Exception as e:
         print(f"Failed to insert user: {e}")
 
@@ -46,6 +54,7 @@ def add_coord(location):
 @app.route('/')
 def index():
     return "Backend"
+
 
 @app.route('/api/data', methods=['POST'])
 def add_user_route():
@@ -74,17 +83,8 @@ def check_user():
     else:
         return jsonify({"exists": False, "message": "Username not found"}), 404
 
-#can be changed to add in markers for wildfires
-@app.route('/predict', methods=['POST'])
-def predict():
-    location = json.loads(request.form['location'])
 
-    add_coord(location)
-    return jsonify({
-        'predicted_class': "test"
-    })
-
-#get all wildfire markers
+# get all wildfire markers
 @app.route('/wildfires', methods=['GET'])
 def get_wildfires():
     try:
@@ -93,6 +93,106 @@ def get_wildfires():
             d['_id'] = str(d['_id'])  # Convert _id to string
         return jsonify(wildfire), 200
     except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+client = genai.Client(api_key="AIzaSyD0o2BpVrjspkzpyRZQfpFd2IjA3iNM68E")  # Replace with your actual API key
+
+
+@app.route('/get_red_spread', methods=['POST'])
+def get_red_spread():
+    try:
+        # Get data from the request body
+        data = request.get_json()
+
+        if not data:
+            return jsonify({'error': 'No wildfire data provided'}), 400
+
+        # Extract location coordinates
+        location = data.get('location')
+        if not location or len(location) != 2:
+            return jsonify({'error': 'Invalid location data'}), 400
+
+        lon, lat = location  # Frontend sends [longitude, latitude]
+
+        # Extract environmental data
+        temperature = data.get('temperature', 0)
+        humidity = data.get('humidity', 50)
+        wind_speed = data.get('wind_speed', 0)
+        wind_direction = data.get('wind_direction', 0)
+        wind_gust = data.get('wind_gust', 0)
+        rain = data.get('rain', 0)
+        clouds = data.get('clouds', 0)
+
+        # Create the prompt
+        prompt = f"""
+        You are a wildfire spread prediction model. Calculate a realistic spread radius in meters 
+        for a wildfire at coordinates [{lat}, {lon}] with the following conditions:
+
+        - Temperature: {temperature}°C
+        - Humidity: {humidity}%
+        - Wind speed: {wind_speed} m/s
+        - Wind direction: {wind_direction}°
+        - Wind gust: {wind_gust} m/s
+        - Rainfall: {rain}mm
+        - Cloud cover: {clouds}%
+
+        The Rate of Spread (ROS) can be estimated using:
+
+        ROS = R₀ × e^(aT + bW + cG - dH - eR - fC)
+
+        Where:
+
+        R₀ = Base rate of spread (depends on fuel type, typically derived from historical data).
+        T = Temperature (°C).
+        W = Wind speed (km/h).
+        G = Wind gust speed (km/h).
+        H = Relative humidity (%).
+        R = Rainfall (mm).
+        C = Cloud cover (%).
+        a, b, c, d, e, f = Empirical coefficients.
+
+        Make some large coefficients and calculate the ROS. This will be the spread_radius.
+
+        Respond with only a JSON object containing a single field 'spread_radius' with a value in meters.
+        For example: {{"spread_radius": 1500}}.
+        """
+
+        # Generate content using Gemini
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",  # Use the appropriate Gemini model
+            contents=prompt
+        )
+
+        # Parse the response
+        response_text = response.text
+        spread_radius = None
+
+        try:
+            import json
+            result = json.loads(response_text)
+            spread_radius = result.get('spread_radius', 1000)
+        except json.JSONDecodeError:
+            # Fallback to extract just the number if JSON parsing fails
+            import re
+            match = re.search(r'(\d+)', response_text)
+            if match:
+                spread_radius = int(match.group(1))
+
+        # If no spread_radius is found, set a default
+        if spread_radius is None:
+            spread_radius = 1000
+
+        print(spread_radius)
+
+        return jsonify({
+            'latitude': lat,
+            'longitude': lon,
+            'spread_radius': spread_radius
+        }), 200
+
+    except Exception as e:
+        print(f"Error in get_red_spread: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 # Main entry point
