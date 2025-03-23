@@ -46,3 +46,10 @@
 ## Wildfire Spread Analysis
 - Analyzes factors (wind, humidity, temperature) to predict fire spread
 - AI-based computation for accurate predictions
+
+# Challenges  We Ran Into
+- The vast amount of data collected from FIRMS was intended to be displayed on the Map GUI. However, the front-end React application could not accommodate all 28,000 data points, so we opted for approximately 1,000 data points instead.
+
+- One of our original ideas for the map GUI was to calculate the spread of each wildfire and display it on the map. However, this would require thousands of API requests to Gemini, which was not feasible within our budget. Instead, we decided to only show the spread of a wildfire if the user requests it for a specific marker.
+
+- The selection and configuration of the LLM model were also challenging, requiring trial and error when testing prompts to generate accurate descriptions of wildfires based on the collected data and the spread depicted on the map. Since Cohere and Gemini were utilized, different strategies in prompts were employed to configure each LLM.
