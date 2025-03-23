@@ -925,7 +925,10 @@ const IntroductionPage = () => {
                 </>
               )}
             </button>
-            <button className="bg-gradient-to-r from-purple-600 to-purple-700 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:from-purple-700 hover:to-purple-800 transition-all duration-200 flex items-center gap-2">
+            <button 
+              onClick={() => window.open('https://www.redcross.org/donate/disaster-donations.html/', '_blank')}
+              className="bg-gradient-to-r from-purple-600 to-purple-700 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:from-purple-700 hover:to-purple-800 transition-all duration-200 flex items-center gap-2"
+            >
               <Heart className="w-5 h-5" />
               Donate
             </button>
