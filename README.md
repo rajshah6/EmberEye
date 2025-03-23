@@ -61,4 +61,21 @@ The data gathered from the OpenWeatherMap API serves as a solid foundation for t
 
 Speed was one of our team's strengths in this project. By dividing the work between front-end development, data gathering, and web server management in Python, we created a great synergy that allowed us to spend more time debugging and refining our project.
 
+# What We Learned
+Data Handling: Learned to efficiently manage large datasets (e.g., 28,000 data points) and optimize front-end rendering by reducing data load.
+
+API Integration: Gained experience integrating multiple APIs (FIRMS, OpenWeatherMap) for real-time data collection and usage in applications.
+
+AI Model Utilization: Explored using Cohere and Gemini for generating insights and predicting wildfire behavior, understanding how to tailor AI prompts for better results.
+
+Frontend Performance Optimization: Optimized React app for performance by focusing on a subset of data and employing efficient rendering techniques.
+
+Backend Automation: Implemented automated background tasks (APScheduler) to ensure data is up-to-date without manual intervention, learning about task scheduling and its challenges.
+
+User Interface Design: Learned the importance of minimalist design principles combined with animations to enhance user experience.
+
+Security & Best Practices: Emphasized securing sensitive data through environment variables and optimized database queries for system stability.
+
+Collaboration & Time Management: Learned how dividing tasks between team members (front-end, data gathering, server management) led to efficient development and problem-solving.
+
 
