@@ -1,7 +1,7 @@
-# Tech Stack
+# How We Built It
 
 ## FIRMS (Fire Information for Resource Management System)
-- NASA’s API detects heat signatures via satellite imagery
+- NASA’s API detects heat signatures via satellite imager
 - Provides real-time wildfire locations (latitude and longitude)
 - Front end selects specific wildfires using these coordinates
 
