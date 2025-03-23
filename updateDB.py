@@ -73,7 +73,7 @@ def get_location_name(lat, lon):
     """
     try:
         geolocator = Nominatim(user_agent="wildfire_app")
-        location = geolocator.reverse((lat, lon), exactly_one=True)
+        location = geolocator.reverse((lat, lon), exactly_one=True, language="en")
 
         if location:
             address = location.raw.get('address', {})
