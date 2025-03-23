@@ -1,6 +1,7 @@
 # Inspiration
 - UN Development Goal #13: Climate Action
 - When we focused on this goal, we wanted to provide a unique method of providing climate action through intelligent data collection.
+- Google recently launched the first satellite of its FireSat constellation, designed to detect wildfires using advanced infrared sensors and AI. With plans to deploy over 50 satellites by 2030, FireSat aims to identify fires as small as 5x5 meters within minutes. While this is a groundbreaking step in wildfire detection, it comes with a massive budget. Inspired by this innovation, we set out to develop a more affordable AI-driven approach to wildfire monitoring.
 
 # How We Built It
 ![Flowchart](https://media-hosting.imagekit.io//b224578219d4499d/Simple_Flowchart_Infographic_Graph.webp?Expires=1837305459&Key-Pair-Id=K2ZIVPTIP2VGHC&Signature=ZLL0zs2qcd1FF456TVS8PIZcbIs19oPaaDqo7gFH6qfhoK~ZqYfp0ZhVN1HsrxB7sChNvYiSsSe0iTk7QHocMHenGfOT9XjCKdcJ6VdD3DK5B2oYiTBqXpOfnF7gKWtApgeEuDcHKyo~WT~WBZoOFCCPpgSlvcW4up5bTH5WOKx9onnLBlw0hTK2ptutWaOSl2iUYECAkYgEKSKwQOl6ftXEXocA8YVMPXsP0W7wfDWNk2WLAyrcyshwNeQoq-lefG1xvSzLl2zvyTM4QnlezQ4EFx5Grwsl~7Tqe~Ty59bGxXmBR5AqkXpvJNNathvUxbFIDXtw67JhtTllzpnSrA__)
