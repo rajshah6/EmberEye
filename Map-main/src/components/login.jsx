@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { UserIcon, KeyIcon, MapIcon, ShieldAlertIcon, BellIcon } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -7,11 +7,72 @@ const Login = () => {
     username: '',
     password: ''
   });
+  const [loginStatus, setLoginStatus] = useState('idle'); // 'idle', 'loading', 'success', 'error'
+  const [statusMessage, setStatusMessage] = useState('');
+  const [welcomeMessage, setWelcomeMessage] = useState('Sign in to access your personalized dashboard');
+  const [currentQuote, setCurrentQuote] = useState(0);
   const navigate = useNavigate();
+
+  // Quotes array with testimonials
+  const quotes = [
+    {
+      text: "EmberEye has revolutionized how we monitor and respond to wildfire threats in our community.",
+      author: "Emergency Response Team"
+    },
+    {
+      text: "The real-time alerts and AI analysis have helped us evacuate vulnerable areas before disaster strikes.",
+      author: "Regional Fire Chief"
+    },
+    {
+      text: "As a resident in a high-risk area, EmberEye provides peace of mind and critical information when I need it most.",
+      author: "Mountain Community Resident"
+    },
+    {
+      text: "The predictive analytics have improved our resource allocation during peak fire seasons by over 35%.",
+      author: "Forestry Department Manager"
+    },
+    {
+      text: "EmberEye's satellite integration provides unmatched coverage for remote wilderness areas under our protection.",
+      author: "National Park Ranger"
+    },
+    {
+      text: "Our insurance assessments are now data-driven thanks to EmberEye's detailed risk mapping capabilities.",
+      author: "Risk Assessment Specialist"
+    }
+  ];
+
+  // Change welcome message randomly every 5 seconds
+  useEffect(() => {
+    const messages = [
+      'Sign in to access your personalized dashboard',
+      'Track wildfires in real-time with EmberEye',
+      'Stay informed with AI-powered risk assessments',
+      'Monitor wildfire conditions in your area',
+      'Access detailed wildfire analytics and forecasts'
+    ];
+    
+    const intervalId = setInterval(() => {
+      const randomIndex = Math.floor(Math.random() * messages.length);
+      setWelcomeMessage(messages[randomIndex]);
+    }, 5000);
+    
+    return () => clearInterval(intervalId);
+  }, []);
+
+  // Cycle through quotes every 8 seconds
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      setCurrentQuote(prev => (prev + 1) % quotes.length);
+    }, 8000);
+    
+    return () => clearInterval(intervalId);
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     console.log('Login submitted:', formData);
+    setLoginStatus('loading');
+    setStatusMessage('Verifying your credentials...');
 
     // Send check request to the backend to validate credentials
     try {
@@ -27,15 +88,22 @@ const Login = () => {
 
       if (response.ok && result.exists) {
         console.log('Login successful');
-        // Navigate to dashboard or another page after successful login
-        navigate('/main', { state: { username: formData.username } });
+        setLoginStatus('success');
+        setStatusMessage('Login successful! Redirecting...');
+        // Brief delay for user to see success message
+        setTimeout(() => {
+          // Navigate to dashboard or another page after successful login
+          navigate('/main', { state: { username: formData.username } });
+        }, 800);
       } else {
         console.log('Login failed:', result.message);
-        alert(result.message); // Show error message if credentials don't match
+        setLoginStatus('error');
+        setStatusMessage(result.message || 'Invalid credentials. Please try again.');
       }
     } catch (error) {
       console.error('Error during login:', error);
-      alert('An error occurred. Please try again later.');
+      setLoginStatus('error');
+      setStatusMessage('An error occurred. Please try again later.');
     }
   };
 
@@ -44,6 +112,11 @@ const Login = () => {
       ...formData,
       [e.target.name]: e.target.value
     });
+    // Reset status when user starts typing again
+    if (loginStatus === 'error') {
+      setLoginStatus('idle');
+      setStatusMessage('');
+    }
   };
 
   return (
@@ -59,10 +132,10 @@ const Login = () => {
         
         {/* App Logo and Title */}
         <div className="flex items-center mb-8">
-          <svg className="w-12 h-12 text-red-500 mr-4" viewBox="0 0 24 24" fill="currentColor">
+          <svg className="w-12 h-12 text-red-500 mr-4 animate-pulse" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12,23c-1.7,0-3-1.3-3-3c0-1.9,3-6,3-6s3,4.1,3,6C15,21.7,13.7,23,12,23z M17,10c0-1.9,3-6,3-6s3,4.1,3,6c0,1.7-1.3,3-3,3 S17,11.7,17,10z M7,10c0-1.9,3-6,3-6s3,4.1,3,6c0,1.7-1.3,3-3,3S7,11.7,7,10z M4,14c0-1.9,3-6,3-6s3,4.1,3,6c0,1.7-1.3,3-3,3 S4,15.7,4,14z M12,2c0,0,3,4.1,3,6c0,1.7-1.3,3-3,3S9,9.7,9,8C9,6.1,12,2,12,2z" />
           </svg>
-          <h1 className="text-5xl font-bold text-white">EmberEye</h1>
+          <h1 className="text-5xl font-bold text-white ember-glow">EmberEye</h1>
         </div>
         
         {/* Hero Message */}
@@ -71,11 +144,13 @@ const Login = () => {
           <p className="text-xl text-gray-300 mb-6 leading-relaxed">
             A real-time wildfire tracking and risk assessment platform that helps you stay informed and prepared.
           </p>
-          <div className="bg-black bg-opacity-30 p-4 rounded-lg border border-gray-800">
-            <p className="text-gray-400 italic">
-              "EmberEye has revolutionized how we monitor and respond to wildfire threats in our community."
-            </p>
-            <p className="text-gray-500 mt-2">— Emergency Response Team</p>
+          <div className="bg-black bg-opacity-30 p-4 rounded-lg border border-gray-800 relative overflow-hidden">
+            <div className="transition-opacity duration-500 ease-in-out min-h-[120px] flex flex-col justify-center" key={currentQuote}>
+              <p className="text-gray-400 italic">
+                "{quotes[currentQuote].text}"
+              </p>
+              <p className="text-gray-500 mt-2">— {quotes[currentQuote].author}</p>
+            </div>
           </div>
         </div>
         
@@ -122,8 +197,8 @@ const Login = () => {
           
           <div className="space-y-4 mb-6 relative z-10">
             <h2 className="text-2xl font-bold text-center text-white">Welcome Back</h2>
-            <p className="text-center text-gray-400">
-              Sign in to access your personalized dashboard
+            <p className="text-center text-gray-400 min-h-[48px] transition-all duration-500 ease-in-out">
+              {welcomeMessage}
             </p>
           </div>
 
@@ -158,12 +233,33 @@ const Login = () => {
               />
             </div>
 
+            {/* Status message display */}
+            {statusMessage && (
+              <div className={`text-sm text-center py-1 rounded ${
+                loginStatus === 'error' ? 'text-red-400' :
+                loginStatus === 'success' ? 'text-green-400' : 'text-orange-400'
+              }`}>
+                {statusMessage}
+              </div>
+            )}
+
             <button 
               type="submit" 
-              className="w-full py-3 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 text-white rounded-lg
-                       transition-colors duration-200 font-semibold"
+              disabled={loginStatus === 'loading'}
+              className={`w-full py-3 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 text-white rounded-lg
+                       transition-colors duration-200 font-semibold relative ${loginStatus === 'loading' ? 'opacity-80 cursor-wait' : ''}`}
             >
-              Sign In
+              {loginStatus === 'loading' ? (
+                <>
+                  <span className="opacity-0">Sign In</span>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  </div>
+                </>
+              ) : 'Sign In'}
             </button>
           </form>
 
@@ -184,6 +280,42 @@ const Login = () => {
           </div>
         </div>
       </div>
+
+      {/* Add CSS for the glowing effect */}
+      <style jsx>{`
+        .ember-glow {
+          text-shadow: 0 0 10px rgba(249, 115, 22, 0.5),
+                       0 0 20px rgba(249, 115, 22, 0.3),
+                       0 0 30px rgba(249, 115, 22, 0.2),
+                       0 0 40px rgba(249, 115, 22, 0.1);
+          background: linear-gradient(to right, #f97316, #ef4444, #f97316);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          animation: pulse-glow 3s infinite alternate;
+        }
+        
+        @keyframes pulse-glow {
+          from {
+            text-shadow: 0 0 10px rgba(249, 115, 22, 0.5),
+                         0 0 20px rgba(249, 115, 22, 0.3);
+          }
+          to {
+            text-shadow: 0 0 15px rgba(249, 115, 22, 0.7),
+                         0 0 25px rgba(249, 115, 22, 0.5),
+                         0 0 35px rgba(249, 115, 22, 0.3),
+                         0 0 45px rgba(249, 115, 22, 0.2);
+          }
+        }
+        
+        .transition-opacity {
+          animation: fadeQuote 8s infinite;
+        }
+        
+        @keyframes fadeQuote {
+          0%, 100% { opacity: 0; }
+          5%, 90% { opacity: 1; }
+        }
+      `}</style>
     </div>
   );
 };
