@@ -787,6 +787,65 @@ const IntroductionPage = () => {
             Total: {wildfires.length} | Visible: {visibleMarkerCounts.wildfires}
           </p>
           <ul className="space-y-2 pr-2">
+            {closestWildfire && (
+              <li 
+                className="p-4 mb-4 bg-gray-800 rounded hover:bg-gray-700 transition cursor-pointer" 
+                onClick={() => navigateToClosestWildfire()}
+                title="Click to view this wildfire"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-bold text-white">Closest Wildfire Risk Level</h3>
+                  <div className="flex items-center">
+                    <span className="text-white font-bold mr-2">
+                      {calculateDangerPercentage(closestWildfire)}%
+                    </span>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        findClosestWildfire();
+                      }}
+                      className="p-1 rounded hover:bg-gray-700 transition"
+                      title="Refresh risk assessment"
+                    >
+                      <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                <div className="h-4 w-full bg-gray-700 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{
+                      width: `${calculateDangerPercentage(closestWildfire)}%`,
+                      background: `linear-gradient(90deg, 
+                        rgb(34, 197, 94) 0%, 
+                        rgb(250, 204, 21) 50%, 
+                        rgb(239, 68, 68) 100%)`,
+                      backgroundSize: '300% 100%',
+                      backgroundPosition: `${100 - calculateDangerPercentage(closestWildfire)}% 0`
+                    }}
+                  ></div>
+                </div>
+                <div className="flex justify-between mt-1 text-xs text-gray-400">
+                  <span>Low Risk</span>
+                  <span>Moderate</span>
+                  <span>High Risk</span>
+                </div>
+                <div className="flex justify-between items-center mt-2">
+                  <p className="text-sm text-gray-300">
+                    {calculateDangerPercentage(closestWildfire) < 30 ? 
+                      "Low risk. Monitor for changes." :
+                      calculateDangerPercentage(closestWildfire) < 70 ?
+                        "Moderate risk. Stay informed." :
+                        "High risk. Be prepared to evacuate."
+                    }
+                  </p>
+                  <span className="text-xs text-blue-400">{closestWildfire.distance.toFixed(1)} km away</span>
+                </div>
+              </li>
+            )}
+            
             {(showAllWildfires ? wildfires : wildfires.slice(0, 10)).map(
               (wildfire, index) => (
                 <li
@@ -841,65 +900,6 @@ const IntroductionPage = () => {
                 onClick={() => setShowAllWildfires(true)}
               >
                 View More ({wildfires.length - 10} more)
-              </li>
-            )}
-            
-            {closestWildfire && (
-              <li 
-                className="p-4 mt-4 bg-gray-800 rounded hover:bg-gray-700 transition cursor-pointer" 
-                onClick={() => navigateToClosestWildfire()}
-                title="Click to view this wildfire"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-bold text-white">Closest Wildfire Risk Level</h3>
-                  <div className="flex items-center">
-                    <span className="text-white font-bold mr-2">
-                      {calculateDangerPercentage(closestWildfire)}%
-                    </span>
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        findClosestWildfire();
-                      }}
-                      className="p-1 rounded hover:bg-gray-700 transition"
-                      title="Refresh risk assessment"
-                    >
-                      <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-                <div className="h-4 w-full bg-gray-700 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full rounded-full transition-all duration-500"
-                    style={{
-                      width: `${calculateDangerPercentage(closestWildfire)}%`,
-                      background: `linear-gradient(90deg, 
-                        rgb(34, 197, 94) 0%, 
-                        rgb(250, 204, 21) 50%, 
-                        rgb(239, 68, 68) 100%)`,
-                      backgroundSize: '300% 100%',
-                      backgroundPosition: `${100 - calculateDangerPercentage(closestWildfire)}% 0`
-                    }}
-                  ></div>
-                </div>
-                <div className="flex justify-between mt-1 text-xs text-gray-400">
-                  <span>Low Risk</span>
-                  <span>Moderate</span>
-                  <span>High Risk</span>
-                </div>
-                <div className="flex justify-between items-center mt-2">
-                  <p className="text-sm text-gray-300">
-                    {calculateDangerPercentage(closestWildfire) < 30 ? 
-                      "Low risk. Monitor for changes." :
-                      calculateDangerPercentage(closestWildfire) < 70 ?
-                        "Moderate risk. Stay informed." :
-                        "High risk. Be prepared to evacuate."
-                    }
-                  </p>
-                  <span className="text-xs text-blue-400">{closestWildfire.distance.toFixed(1)} km away</span>
-                </div>
               </li>
             )}
           </ul>
