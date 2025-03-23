@@ -31,6 +31,7 @@ const IntroductionPage = () => {
   });
   const [isSpreadLoading, setIsSpreadLoading] = useState(false);
   const [currentLocation, setCurrentLocation] = useState(null);
+  const [closestWildfire, setClosestWildfire] = useState(null);
   const mapRef = useRef(null);
   const mapContainerRef = useRef(null);
   const markersRef = useRef([]);
@@ -387,6 +388,13 @@ const IntroductionPage = () => {
     }
   }, [wildfires, mapLoaded]);
 
+  // Add this effect to find the closest wildfire when data is available
+  useEffect(() => {
+    if (currentLocation && wildfires.length > 0) {
+      findClosestWildfire();
+    }
+  }, [currentLocation, wildfires]);
+
   const formatCoordinates = (location) => {
     if (!Array.isArray(location) || location.length !== 2) {
       return "N/A";
@@ -591,6 +599,72 @@ const IntroductionPage = () => {
     );
   };
 
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371; // Earth's radius in kilometers
+    const dLat = (lat2 - lat1) * (Math.PI / 180);
+    const dLon = (lon2 - lon1) * (Math.PI / 180);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * (Math.PI / 180)) *
+        Math.cos(lat2 * (Math.PI / 180)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
+  const findClosestWildfire = () => {
+    if (!currentLocation || !wildfires.length) return;
+
+    let closest = null;
+    let minDistance = Infinity;
+
+    wildfires.forEach((wildfire) => {
+      if (wildfire.location && Array.isArray(wildfire.location)) {
+        const [longitude, latitude] = wildfire.location;
+        const distance = calculateDistance(
+          currentLocation.latitude,
+          currentLocation.longitude,
+          latitude,
+          longitude
+        );
+
+        if (distance < minDistance) {
+          minDistance = distance;
+          closest = { ...wildfire, distance };
+        }
+      }
+    });
+
+    setClosestWildfire(closest);
+    return closest;
+  };
+
+  const navigateToClosestWildfire = () => {
+    const closest = findClosestWildfire();
+    if (closest && mapRef.current) {
+      const [longitude, latitude] = closest.location;
+      mapRef.current.flyTo({
+        center: [longitude, latitude],
+        zoom: 14,
+        speed: 1.5,
+        essential: true
+      });
+
+      // Show popup after animation
+      const handleMoveEnd = () => {
+        setSelectedMarker({
+          ...closest,
+          markerType: "wildfire",
+        });
+        setShowPopup(true);
+        mapRef.current.off("moveend", handleMoveEnd);
+      };
+
+      mapRef.current.on("moveend", handleMoveEnd);
+    }
+  };
+
   return (
     <div className="flex h-screen overflow-auto bg-gray-900">
       {/* Sidebar */}
@@ -625,6 +699,18 @@ const IntroductionPage = () => {
                 className="bg-blue-500 text-white font-bold py-2 px-4 rounded-lg shadow-lg hover:bg-blue-600 transition duration-200"
               >
                 Return to My Location
+              </button>
+            )}
+          </div>
+
+          <div className="mt-4">
+            {currentLocation && closestWildfire && (
+              <button
+                onClick={navigateToClosestWildfire}
+                className="bg-orange-500 text-white font-bold py-2 px-4 rounded-lg shadow-lg hover:bg-orange-600 transition duration-200 flex items-center"
+              >
+                <span className="mr-2">🔥</span>
+                Find Closest Wildfire ({closestWildfire.distance.toFixed(1)} km)
               </button>
             )}
           </div>
