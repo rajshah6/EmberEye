@@ -7,6 +7,8 @@ from flask_cors import CORS
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
 import os
+from geopy.geocoders import Nominatim
+import time
 
 # MongoDB setup
 uri = os.environ.get('MONGO_API')
@@ -30,7 +32,8 @@ def fetch_wildfire_coordinates():
         csv_data = StringIO(response.text)
         reader = csv.DictReader(csv_data)
 
-        fire_locations = [(float(row["longitude"]), float(row["latitude"])) for row in reader if "latitude" in row and "longitude" in row]
+        fire_locations = [(float(row["longitude"]), float(row["latitude"])) for row in reader if
+                          "latitude" in row and "longitude" in row]
         return fire_locations
     else:
         print(f"Error fetching data: {response.status_code}")
@@ -64,6 +67,27 @@ def get_wind_data(lat, lon):
     return None
 
 
+def get_location_name(lat, lon):
+    """
+    Get country and state name from latitude and longitude using Nominatim geocoder
+    """
+    try:
+        geolocator = Nominatim(user_agent="wildfire_app")
+        location = geolocator.reverse((lat, lon), exactly_one=True)
+
+        if location:
+            address = location.raw.get('address', {})
+            return {
+                "country": address.get('country'),
+                "state": address.get('state', address.get('county', address.get('province')))
+            }
+    except Exception as e:
+        print(f"Error getting location name for {lat}, {lon}: {e}")
+
+    # Return None if we can't get location info
+    return None
+
+
 def reset_and_add_wildfire_coords():
     fire_locations = fetch_wildfire_coordinates()
 
@@ -71,7 +95,7 @@ def reset_and_add_wildfire_coords():
         wildfire_coordinates.delete_many({})  # Clear collection before inserting
 
         for index, location in enumerate(fire_locations):
-            if (index + 1) % 280 == 0:  # Insert every 200th location
+            if (index + 1) % 280 == 0:  # Insert every 280th location
                 data = {"location": list(location)}
                 try:
                     wildfire_coordinates.insert_one(data)
@@ -81,13 +105,17 @@ def reset_and_add_wildfire_coords():
         print("No fire locations fetched.")
 
 
-def add_wind_data_to_documents():
+def add_metadata_to_documents():
+    """
+    Add both wind data and location names to wildfire documents
+    """
     fire_documents = wildfire_coordinates.find()
 
     for doc in fire_documents:
         try:
-            longitude, latitude = map(float, doc["location"])
+            longitude, latitude = doc["location"]
 
+            # Add wind data
             wind_data = get_wind_data(latitude, longitude)
 
             # Retry with rounded coordinates if API fails
@@ -109,11 +137,27 @@ def add_wind_data_to_documents():
                     "clouds": random.randint(0, 100),  # %
                 }
 
-            # Update MongoDB document with new weather data
+            # Get location name data
+            location_data = get_location_name(latitude, longitude)
+
+            # If location lookup fails, add placeholders
+            if not location_data:
+                location_data = {
+                    "country": "Unknown",
+                    "state": "Unknown"
+                }
+
+            # Combine all data
+            update_data = {**wind_data, **location_data}
+
+            # Update MongoDB document with all new data
             wildfire_coordinates.update_one(
                 {"_id": doc["_id"]},
-                {"$set": wind_data}
+                {"$set": update_data}
             )
+
+            # Sleep briefly to avoid hitting rate limits on Nominatim
+            time.sleep(0.1)
 
         except Exception as e:
             print(f"Error processing document {doc['_id']}: {e}")
