@@ -64,6 +64,10 @@ const IntroductionPage = () => {
   const navigate = useNavigate();
   const username = location.state?.username;
   const [showAllWildfires, setShowAllWildfires] = useState(false);
+  // Add new state for search functionality
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filteredWildfires, setFilteredWildfires] = useState([]);
+  const [availableCountries, setAvailableCountries] = useState([]);
 
   mapboxgl.accessToken =
     "pk.eyJ1IjoiYXVta2FybWFsaSIsImEiOiJjbTNydmViNWYwMDEwMnJwdnhra3lqcTdiIn0.uENwb1XNsjEY1Y9DUWwslw";
@@ -76,6 +80,7 @@ const IntroductionPage = () => {
       if (!response.ok) throw new Error("Failed to fetch wildfires");
       const data = await response.json();
       setWildfires(data);
+      setFilteredWildfires(data);
       markerDataRef.current.wildfires = data;
     } catch (error) {
       console.error("Error fetching wildfires:", error);
@@ -443,6 +448,22 @@ const IntroductionPage = () => {
       return () => clearInterval(intervalId);
     }
   }, [closestWildfire]);
+
+  // Extract unique countries when wildfires data is loaded
+  useEffect(() => {
+    if (wildfires.length > 0) {
+      const uniqueCountries = [
+        ...new Set(
+          wildfires
+            .filter((wildfire) => wildfire.country)
+            .map((wildfire) => wildfire.country)
+        ),
+      ].sort();
+
+      setAvailableCountries(uniqueCountries);
+      setFilteredWildfires(wildfires);
+    }
+  }, [wildfires]);
 
   const formatCoordinates = (location) => {
     if (!Array.isArray(location) || location.length !== 2) {
@@ -1036,6 +1057,51 @@ const IntroductionPage = () => {
     }
   };
 
+  // Add this function to handle search filtering
+  const handleSearch = (query) => {
+    setSearchQuery(query);
+
+    if (!query.trim()) {
+      setFilteredWildfires(wildfires);
+      return;
+    }
+
+    const lowercaseQuery = query.toLowerCase();
+    const filtered = wildfires.filter((wildfire) => {
+      return (
+        wildfire.country &&
+        wildfire.country.toLowerCase().includes(lowercaseQuery)
+      );
+    });
+
+    setFilteredWildfires(filtered);
+
+    // If we have filtered results and a map reference, we can optionally adjust the map
+    if (filtered.length > 0 && mapRef.current) {
+      // Create a new bounds object
+      const bounds = new mapboxgl.LngLatBounds();
+
+      // Extend the bounds to include all filtered wildfires
+      filtered.forEach((wildfire) => {
+        if (
+          wildfire.location &&
+          Array.isArray(wildfire.location) &&
+          wildfire.location.length === 2
+        ) {
+          bounds.extend(wildfire.location);
+        }
+      });
+
+      // If we have valid bounds (i.e., at least one valid location), fit the map to those bounds
+      if (!bounds.isEmpty()) {
+        mapRef.current.fitBounds(bounds, {
+          padding: 50,
+          maxZoom: 10,
+        });
+      }
+    }
+  };
+
   return (
     <div className="flex h-screen overflow-auto bg-gray-900">
       {/* Apply custom animations */}
@@ -1080,6 +1146,75 @@ const IntroductionPage = () => {
             )}
           </div>
 
+          {/* Search bar */}
+          <div className="mt-4 relative">
+            <div className="flex items-center">
+              <div className="relative flex-grow">
+                <input
+                  type="text"
+                  placeholder="Search by country..."
+                  value={searchQuery}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  className="w-full px-4 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-500"
+                />
+                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                  <svg
+                    className="h-5 w-5 text-gray-500"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </div>
+              </div>
+              {searchQuery && (
+                <button
+                  onClick={() => handleSearch("")}
+                  className="ml-2 bg-gray-700 p-2 rounded-full hover:bg-gray-600 text-gray-300"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              )}
+            </div>
+
+            {availableCountries.length > 0 && searchQuery && (
+              <div className="absolute z-10 mt-1 w-full bg-gray-800 rounded-md shadow-lg max-h-60 overflow-auto custom-scrollbar">
+                <div className="py-1">
+                  {availableCountries
+                    .filter((country) =>
+                      country.toLowerCase().includes(searchQuery.toLowerCase())
+                    )
+                    .slice(0, 10)
+                    .map((country, idx) => (
+                      <button
+                        key={idx}
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700"
+                        onClick={() => handleSearch(country)}
+                      >
+                        {country}
+                      </button>
+                    ))}
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="mt-4">
             {currentLocation && closestWildfire && (
               <button
@@ -1097,14 +1232,16 @@ const IntroductionPage = () => {
           )}
         </div>
 
-        {/* Scrollable wildfire list */}
+        {/* Scrollable wildfire list - now using filteredWildfires instead of wildfires */}
         <div className="flex-grow mt-6 text-gray-300 overflow-y-auto custom-scrollbar">
           <h2 className="text-xl font-bold mb-2">Wildfires Near You</h2>
           <p className="text-sm text-gray-400 mb-2">
-            Total: {wildfires.length} | Visible: {visibleMarkerCounts.wildfires}
+            Total: {wildfires.length} |
+            {searchQuery ? ` Filtered: ${filteredWildfires.length} | ` : ""}
+            Visible: {visibleMarkerCounts.wildfires}
           </p>
           <ul className="space-y-2 pr-2">
-            {closestWildfire && (
+            {closestWildfire && !searchQuery && (
               <li
                 className="p-4 mb-4 bg-gray-800 rounded hover:bg-gray-700 transition cursor-pointer"
                 onClick={() => navigateToClosestWildfire()}
@@ -1189,79 +1326,85 @@ const IntroductionPage = () => {
               </li>
             )}
 
-            {(showAllWildfires ? wildfires : wildfires.slice(0, 10)).map(
-              (wildfire, index) => (
-                <li
-                  key={`wildfire-${index}`}
-                  className="p-2 bg-gray-800 rounded cursor-pointer hover:bg-gray-700 transition"
-                  onClick={() => {
-                    if (
-                      wildfire.location &&
-                      Array.isArray(wildfire.location) &&
-                      wildfire.location.length === 2
-                    ) {
-                      const [longitude, latitude] = wildfire.location;
+            {(showAllWildfires
+              ? filteredWildfires
+              : filteredWildfires.slice(0, 10)
+            ).map((wildfire, index) => (
+              <li
+                key={`wildfire-${index}`}
+                className="p-2 bg-gray-800 rounded cursor-pointer hover:bg-gray-700 transition"
+                onClick={() => {
+                  if (
+                    wildfire.location &&
+                    Array.isArray(wildfire.location) &&
+                    wildfire.location.length === 2
+                  ) {
+                    const [longitude, latitude] = wildfire.location;
 
-                      // Fly to the location
-                      mapRef.current.flyTo({
-                        center: [longitude, latitude],
-                        zoom: 12,
-                        speed: 1.5,
+                    // Fly to the location
+                    mapRef.current.flyTo({
+                      center: [longitude, latitude],
+                      zoom: 12,
+                      speed: 1.5,
+                    });
+
+                    // Add a listener to show the popup after the map animation ends
+                    const handleMoveEnd = () => {
+                      setSelectedMarker({
+                        ...wildfire,
+                        markerType: "wildfire",
                       });
+                      setShowPopup(true);
 
-                      // Add a listener to show the popup after the map animation ends
-                      const handleMoveEnd = () => {
-                        setSelectedMarker({
-                          ...wildfire,
-                          markerType: "wildfire",
-                        });
-                        setShowPopup(true);
+                      // Remove the event listener after it's triggered
+                      mapRef.current.off("moveend", handleMoveEnd);
+                    };
 
-                        // Remove the event listener after it's triggered
-                        mapRef.current.off("moveend", handleMoveEnd);
-                      };
-
-                      mapRef.current.on("moveend", handleMoveEnd);
-                    } else {
-                      console.warn(
-                        "Invalid wildfire location:",
-                        wildfire.location
-                      );
-                    }
-                  }}
-                >
-                  <div className="flex flex-col">
-                    <p className="font-medium">
-                      {wildfire.country && wildfire.state ? (
-                        <span className="text-yellow-400">
-                          {wildfire.state}, <strong>{wildfire.country}</strong>
-                        </span>
-                      ) : wildfire.country ? (
-                        <span className="text-yellow-400">
-                          <strong>{wildfire.country}</strong>
-                        </span>
-                      ) : wildfire.locationName ? (
-                        <span className="text-yellow-400">
-                          {wildfire.locationName}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400">Unknown Location</span>
-                      )}
-                    </p>
-                    <p className="text-sm text-gray-400">
-                      <strong>Coordinates:</strong>{" "}
-                      {formatCoordinates(wildfire.location)}
-                    </p>
-                  </div>
-                </li>
-              )
-            )}
-            {!showAllWildfires && wildfires.length > 10 && (
+                    mapRef.current.on("moveend", handleMoveEnd);
+                  } else {
+                    console.warn(
+                      "Invalid wildfire location:",
+                      wildfire.location
+                    );
+                  }
+                }}
+              >
+                <div className="flex flex-col">
+                  <p className="font-medium">
+                    {wildfire.country && wildfire.state ? (
+                      <span className="text-yellow-400">
+                        {wildfire.state}, <strong>{wildfire.country}</strong>
+                      </span>
+                    ) : wildfire.country ? (
+                      <span className="text-yellow-400">
+                        <strong>{wildfire.country}</strong>
+                      </span>
+                    ) : wildfire.locationName ? (
+                      <span className="text-yellow-400">
+                        {wildfire.locationName}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400">Unknown Location</span>
+                    )}
+                  </p>
+                  <p className="text-sm text-gray-400">
+                    <strong>Coordinates:</strong>{" "}
+                    {formatCoordinates(wildfire.location)}
+                  </p>
+                </div>
+              </li>
+            ))}
+            {!showAllWildfires && filteredWildfires.length > 10 && (
               <li
                 className="p-2 bg-gray-800 rounded text-center cursor-pointer hover:bg-gray-700 transition"
                 onClick={() => setShowAllWildfires(true)}
               >
-                View More ({wildfires.length - 10} more)
+                View More ({filteredWildfires.length - 10} more)
+              </li>
+            )}
+            {filteredWildfires.length === 0 && (
+              <li className="p-4 bg-gray-800 rounded text-center">
+                No wildfires found for "{searchQuery}"
               </li>
             )}
           </ul>
