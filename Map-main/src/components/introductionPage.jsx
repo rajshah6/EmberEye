@@ -1112,10 +1112,9 @@ const IntroductionPage = () => {
         {/* Header section */}
         <div className="flex-shrink-0">
           <h1 className="text-3xl font-bold mb-4 text-white">
-            Welcome {username}!
+            {!username ? "Welcome!" : `Welcome ${username}!`}
           </h1>
           <p className="text-lg mb-4 text-gray-300">
-            This is where the content goes.
           </p>
 
           <div className="flex space-x-4">
@@ -1236,8 +1235,8 @@ const IntroductionPage = () => {
         <div className="flex-grow mt-6 text-gray-300 overflow-y-auto custom-scrollbar">
           <h2 className="text-xl font-bold mb-2">Wildfires Near You</h2>
           <p className="text-sm text-gray-400 mb-2">
-            Total: {wildfires.length} |
-            {searchQuery ? ` Filtered: ${filteredWildfires.length} | ` : ""}
+            Total: {wildfires.length} | 
+            {searchQuery ? ` Filtered: ${filteredWildfires.length} | ` : " "}
             Visible: {visibleMarkerCounts.wildfires}
           </p>
           <ul className="space-y-2 pr-2">
