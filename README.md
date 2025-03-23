@@ -1,8 +1,3 @@
-TO DO:
-- donations
-- country generalization
-- only load points near the country selected
-- topology graphs (if time)
 
 
 # Inspiration
