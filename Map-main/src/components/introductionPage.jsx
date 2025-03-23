@@ -30,6 +30,7 @@ const IntroductionPage = () => {
     wildfires: 0,
   });
   const [isSpreadLoading, setIsSpreadLoading] = useState(false);
+  const [currentLocation, setCurrentLocation] = useState(null);
   const mapRef = useRef(null);
   const mapContainerRef = useRef(null);
   const markersRef = useRef([]);
@@ -348,6 +349,7 @@ const IntroductionPage = () => {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude } = position.coords;
+          setCurrentLocation({ latitude, longitude });
           initializeMap(longitude, latitude, 14);
         },
         (error) => {
@@ -609,6 +611,22 @@ const IntroductionPage = () => {
             >
               Log Out
             </button>
+            {currentLocation && (
+              <button
+                onClick={() => {
+                  if (mapRef.current) {
+                    mapRef.current.flyTo({
+                      center: [currentLocation.longitude, currentLocation.latitude],
+                      zoom: 14,
+                      speed: 1.5,
+                    });
+                  }
+                }}
+                className="bg-blue-500 text-white font-bold py-2 px-4 rounded-lg shadow-lg hover:bg-blue-600 transition duration-200"
+              >
+                Return to My Location
+              </button>
+            )}
           </div>
 
           {locationError && (
