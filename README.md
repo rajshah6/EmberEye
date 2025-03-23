@@ -9,6 +9,11 @@
 ![Flowchart](https://media-hosting.imagekit.io//b224578219d4499d/Simple_Flowchart_Infographic_Graph.webp?Expires=1837305459&Key-Pair-Id=K2ZIVPTIP2VGHC&Signature=ZLL0zs2qcd1FF456TVS8PIZcbIs19oPaaDqo7gFH6qfhoK~ZqYfp0ZhVN1HsrxB7sChNvYiSsSe0iTk7QHocMHenGfOT9XjCKdcJ6VdD3DK5B2oYiTBqXpOfnF7gKWtApgeEuDcHKyo~WT~WBZoOFCCPpgSlvcW4up5bTH5WOKx9onnLBlw0hTK2ptutWaOSl2iUYECAkYgEKSKwQOl6ftXEXocA8YVMPXsP0W7wfDWNk2WLAyrcyshwNeQoq-lefG1xvSzLl2zvyTM4QnlezQ4EFx5Grwsl~7Tqe~Ty59bGxXmBR5AqkXpvJNNathvUxbFIDXtw67JhtTllzpnSrA__)
 
 
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/01255fd7-a329-48b0-9c66-269465723d48" alt="image">
+</p>
+
+
 ## FIRMS (Fire Information for Resource Management System)
 - NASA’s API detects heat signatures via satellite imagery
 - Provides real-time wildfire locations (latitude and longitude)
