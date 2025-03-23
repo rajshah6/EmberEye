@@ -68,6 +68,8 @@ const IntroductionPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredWildfires, setFilteredWildfires] = useState([]);
   const [availableCountries, setAvailableCountries] = useState([]);
+  const [showCountrySuggestions, setShowCountrySuggestions] = useState(false);
+  const searchRef = useRef(null); // Reference for the search container
 
   mapboxgl.accessToken =
     "pk.eyJ1IjoiYXVta2FybWFsaSIsImEiOiJjbTNydmViNWYwMDEwMnJwdnhra3lqcTdiIn0.uENwb1XNsjEY1Y9DUWwslw";
@@ -1102,6 +1104,29 @@ const IntroductionPage = () => {
     }
   };
 
+  // Add a function to handle selecting a country from suggestions
+  const handleSelectCountry = (country) => {
+    handleSearch(country);
+    setShowCountrySuggestions(false); // Hide the suggestions after selection
+  };
+
+  // Add click outside handler to close dropdown
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (searchRef.current && !searchRef.current.contains(event.target)) {
+        setShowCountrySuggestions(false);
+      }
+    };
+
+    // Add event listener when component mounts
+    document.addEventListener("mousedown", handleClickOutside);
+
+    // Clean up the event listener on component unmount
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   return (
     <div className="flex h-screen overflow-auto bg-gray-900">
       {/* Apply custom animations */}
@@ -1114,8 +1139,7 @@ const IntroductionPage = () => {
           <h1 className="text-3xl font-bold mb-4 text-white">
             {!username ? "Welcome!" : `Welcome ${username}!`}
           </h1>
-          <p className="text-lg mb-4 text-gray-300">
-          </p>
+          <p className="text-lg mb-4 text-gray-300"></p>
 
           <div className="flex space-x-4">
             <button
@@ -1146,7 +1170,7 @@ const IntroductionPage = () => {
           </div>
 
           {/* Search bar */}
-          <div className="mt-4 relative">
+          <div className="mt-4 relative" ref={searchRef}>
             <div className="flex items-center">
               <div className="relative flex-grow">
                 <input
@@ -1154,6 +1178,7 @@ const IntroductionPage = () => {
                   placeholder="Search by country..."
                   value={searchQuery}
                   onChange={(e) => handleSearch(e.target.value)}
+                  onFocus={() => setShowCountrySuggestions(true)}
                   className="w-full px-4 py-2 bg-gray-800 text-white rounded-lg border border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-500"
                 />
                 <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
@@ -1172,7 +1197,10 @@ const IntroductionPage = () => {
               </div>
               {searchQuery && (
                 <button
-                  onClick={() => handleSearch("")}
+                  onClick={() => {
+                    handleSearch("");
+                    setShowCountrySuggestions(false);
+                  }}
                   className="ml-2 bg-gray-700 p-2 rounded-full hover:bg-gray-600 text-gray-300"
                 >
                   <svg
@@ -1192,26 +1220,30 @@ const IntroductionPage = () => {
               )}
             </div>
 
-            {availableCountries.length > 0 && searchQuery && (
-              <div className="absolute z-10 mt-1 w-full bg-gray-800 rounded-md shadow-lg max-h-60 overflow-auto custom-scrollbar">
-                <div className="py-1">
-                  {availableCountries
-                    .filter((country) =>
-                      country.toLowerCase().includes(searchQuery.toLowerCase())
-                    )
-                    .slice(0, 10)
-                    .map((country, idx) => (
-                      <button
-                        key={idx}
-                        className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700"
-                        onClick={() => handleSearch(country)}
-                      >
-                        {country}
-                      </button>
-                    ))}
+            {availableCountries.length > 0 &&
+              searchQuery &&
+              showCountrySuggestions && (
+                <div className="absolute z-10 mt-1 w-full bg-gray-800 rounded-md shadow-lg max-h-60 overflow-auto custom-scrollbar">
+                  <div className="py-1">
+                    {availableCountries
+                      .filter((country) =>
+                        country
+                          .toLowerCase()
+                          .includes(searchQuery.toLowerCase())
+                      )
+                      .slice(0, 10)
+                      .map((country, idx) => (
+                        <button
+                          key={idx}
+                          className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700"
+                          onClick={() => handleSelectCountry(country)}
+                        >
+                          {country}
+                        </button>
+                      ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
           </div>
 
           <div className="mt-4">
@@ -1235,7 +1267,7 @@ const IntroductionPage = () => {
         <div className="flex-grow mt-6 text-gray-300 overflow-y-auto custom-scrollbar">
           <h2 className="text-xl font-bold mb-2">Wildfires Near You</h2>
           <p className="text-sm text-gray-400 mb-2">
-            Total: {wildfires.length} | 
+            Total: {wildfires.length} |
             {searchQuery ? ` Filtered: ${filteredWildfires.length} | ` : " "}
             Visible: {visibleMarkerCounts.wildfires}
           </p>
