@@ -485,7 +485,7 @@ const IntroductionPage = () => {
           },
           body: JSON.stringify({
             model: "command",
-            prompt: `Generate insights for ${selectedMarker.location} which is a heat anomaly detected by NASA assumed to be a wildfire. Some more information about it is ${selectedMarker.temperature}°C, humidity: ${selectedMarker.humidity}%, wind speed: ${selectedMarker.wind_speed} m/s, wind direction: ${selectedMarker.wind_direction}°, rain ${selectedMarker.rain}mm and clouds ${selectedMarker.clouds}%. Strictly speak about the details about the wildfire in that area. Keep the length 3-5 sentences.`,
+            prompt: `Generate insights for ${selectedMarker.locationName || "this location"} which is a heat anomaly detected by NASA assumed to be a wildfire. Some more information about it is ${selectedMarker.temperature}°C, humidity: ${selectedMarker.humidity}%, wind speed: ${selectedMarker.wind_speed} m/s, wind direction: ${selectedMarker.wind_direction}°, rain ${selectedMarker.rain}mm and clouds ${selectedMarker.clouds}%. Strictly speak about the details about the wildfire in that area. Also include the city name and not the specific numbers. Keep the length 3-5 sentences.`,
             max_tokens: 150,
           }),
         });
