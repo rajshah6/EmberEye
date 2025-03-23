@@ -210,6 +210,7 @@ const IntroductionPage = () => {
           speed: 1.5,
         });
       }
+      setShowPopup(false);
     } catch (error) {
       console.error("Error fetching spread data:", error);
     } finally {
