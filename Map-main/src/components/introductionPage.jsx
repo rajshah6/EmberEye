@@ -385,6 +385,22 @@ const IntroductionPage = () => {
     }
   }, [wildfires, mapLoaded]);
 
+  const formatCoordinates = (location) => {
+    if (!Array.isArray(location) || location.length !== 2) {
+      return "N/A";
+    }
+
+    const [longitude, latitude] = location;
+
+    const latDirection = latitude >= 0 ? "N" : "S";
+    const longDirection = longitude >= 0 ? "E" : "W";
+
+    // Format with 4 decimal places and appropriate direction indicators
+    return `${Math.abs(longitude).toFixed(4)}° ${longDirection}, ${Math.abs(
+      latitude
+    ).toFixed(4)}° ${latDirection}`;
+  };
+
   const MarkerPopup = () => {
     const [aiDescription, setAiDescription] = useState("");
     const [isLoading, setIsLoading] = useState(false);
@@ -488,7 +504,7 @@ const IntroductionPage = () => {
               <div>
                 <p>
                   <strong>Location:</strong>{" "}
-                  {selectedMarker.location?.join(", ") || "N/A"}
+                  {formatCoordinates(selectedMarker.location)}
                 </p>
                 <p className="mt-2">
                   <strong>Temperature:</strong> {selectedMarker.temperature}°C
@@ -650,9 +666,7 @@ const IntroductionPage = () => {
                 >
                   <p>
                     <strong>Location:</strong>{" "}
-                    {Array.isArray(wildfire.location)
-                      ? wildfire.location.join(", ")
-                      : "Invalid location"}
+                    {formatCoordinates(wildfire.location)}
                   </p>
                 </li>
               )
