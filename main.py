@@ -1,13 +1,15 @@
-
+import os
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
 from google import genai
-
+from updateDB import reset_and_add_wildfire_coords, add_metadata_to_documents
+from apscheduler.schedulers.background import BackgroundScheduler
+from datetime import datetime, timedelta  # Add this import
 
 # MongoDB setup
-uri = "mongodb+srv://doctormali123:N14h8jnPvQF1Io5G@map.wakq4.mongodb.net/?appName=Map"
+uri = os.environ.get('MONGO_API')
 client = MongoClient(uri, server_api=ServerApi('1'))
 
 # Flask setup
@@ -18,6 +20,24 @@ CORS(app)
 db = client["user_data"]
 collection = db["data"]
 wildfire_coordinates = db["wildfire_coord"]
+
+scheduler = BackgroundScheduler()
+
+def run_update_job():
+    print("Starting database update...")
+    reset_and_add_wildfire_coords()
+    add_metadata_to_documents()
+    print("Database update completed.")
+
+# Schedule first run 24 hours from now, then every 24 hours
+start_date = datetime.now() + timedelta(hours=24)
+scheduler.add_job(
+    run_update_job,
+    'interval',
+    hours=24,
+    start_date=start_date  # Delay first execution
+)
+scheduler.start()
 
 
 # User management functions
@@ -90,7 +110,7 @@ def get_wildfires():
         return jsonify({'error': str(e)}), 500
 
 
-client = genai.Client(api_key="AIzaSyD0o2BpVrjspkzpyRZQfpFd2IjA3iNM68E")  # Replace with your actual API key
+client = genai.Client(api_key=os.environ.get('GEMINI'))
 
 
 @app.route('/get_red_spread', methods=['POST'])
