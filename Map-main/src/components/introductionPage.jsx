@@ -396,6 +396,17 @@ const IntroductionPage = () => {
     }
   }, [currentLocation, wildfires]);
 
+  // Update danger calculation periodically to account for changing conditions
+  useEffect(() => {
+    if (closestWildfire) {
+      const intervalId = setInterval(() => {
+        findClosestWildfire();
+      }, 60000); // Recalculate every minute
+      
+      return () => clearInterval(intervalId);
+    }
+  }, [closestWildfire]);
+
   const formatCoordinates = (location) => {
     if (!Array.isArray(location) || location.length !== 2) {
       return "N/A";
@@ -614,6 +625,54 @@ const IntroductionPage = () => {
     return R * c;
   };
 
+  const calculateDangerPercentage = (wildfire) => {
+    if (!wildfire || !currentLocation) return 0;
+    
+    // Extract relevant factors
+    const distance = wildfire.distance || 0; // km
+    const temperature = wildfire.temperature || 0; // °C
+    const windSpeed = wildfire.wind_speed || 0; // m/s
+    const humidity = wildfire.humidity || 0; // %
+    const cloudCover = wildfire.clouds || 0; // %
+    
+    // Set weight for each factor
+    const weights = {
+      distance: 0.4,   // 40% - most important factor
+      temperature: 0.2, // 20%
+      windSpeed: 0.2,   // 20%
+      humidity: 0.1,    // 10%
+      cloudCover: 0.1   // 10%
+    };
+    
+    // Normalize each factor to a 0-100 scale
+    // Distance (closer = more dangerous, max consideration 50km)
+    const distanceScore = Math.max(0, 100 - (distance * 2));
+    
+    // Temperature (higher = more dangerous, consider 0-50°C range)
+    const temperatureScore = Math.min(100, (temperature / 50) * 100);
+    
+    // Wind Speed (higher = more dangerous, consider 0-30 m/s range)
+    const windSpeedScore = Math.min(100, (windSpeed / 30) * 100);
+    
+    // Humidity (lower = more dangerous)
+    const humidityScore = Math.max(0, 100 - humidity);
+    
+    // Cloud Cover (lower = more dangerous)
+    const cloudCoverScore = Math.max(0, 100 - cloudCover);
+    
+    // Calculate weighted score
+    const dangerScore = (
+      weights.distance * distanceScore +
+      weights.temperature * temperatureScore +
+      weights.windSpeed * windSpeedScore +
+      weights.humidity * humidityScore +
+      weights.cloudCover * cloudCoverScore
+    );
+    
+    // Return rounded percentage
+    return Math.round(dangerScore);
+  };
+
   const findClosestWildfire = () => {
     if (!currentLocation || !wildfires.length) return;
 
@@ -782,6 +841,65 @@ const IntroductionPage = () => {
                 onClick={() => setShowAllWildfires(true)}
               >
                 View More ({wildfires.length - 10} more)
+              </li>
+            )}
+            
+            {closestWildfire && (
+              <li 
+                className="p-4 mt-4 bg-gray-800 rounded hover:bg-gray-700 transition cursor-pointer" 
+                onClick={() => navigateToClosestWildfire()}
+                title="Click to view this wildfire"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-bold text-white">Closest Wildfire Risk Level</h3>
+                  <div className="flex items-center">
+                    <span className="text-white font-bold mr-2">
+                      {calculateDangerPercentage(closestWildfire)}%
+                    </span>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        findClosestWildfire();
+                      }}
+                      className="p-1 rounded hover:bg-gray-700 transition"
+                      title="Refresh risk assessment"
+                    >
+                      <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                <div className="h-4 w-full bg-gray-700 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{
+                      width: `${calculateDangerPercentage(closestWildfire)}%`,
+                      background: `linear-gradient(90deg, 
+                        rgb(34, 197, 94) 0%, 
+                        rgb(250, 204, 21) 50%, 
+                        rgb(239, 68, 68) 100%)`,
+                      backgroundSize: '300% 100%',
+                      backgroundPosition: `${100 - calculateDangerPercentage(closestWildfire)}% 0`
+                    }}
+                  ></div>
+                </div>
+                <div className="flex justify-between mt-1 text-xs text-gray-400">
+                  <span>Low Risk</span>
+                  <span>Moderate</span>
+                  <span>High Risk</span>
+                </div>
+                <div className="flex justify-between items-center mt-2">
+                  <p className="text-sm text-gray-300">
+                    {calculateDangerPercentage(closestWildfire) < 30 ? 
+                      "Low risk. Monitor for changes." :
+                      calculateDangerPercentage(closestWildfire) < 70 ?
+                        "Moderate risk. Stay informed." :
+                        "High risk. Be prepared to evacuate."
+                    }
+                  </p>
+                  <span className="text-xs text-blue-400">{closestWildfire.distance.toFixed(1)} km away</span>
+                </div>
               </li>
             )}
           </ul>
