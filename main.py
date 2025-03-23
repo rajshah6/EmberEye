@@ -4,9 +4,11 @@ from flask_cors import CORS
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
 from google import genai
-from updateDB import reset_and_add_wildfire_coords, add_wind_data_to_documents
+from updateDB import reset_and_add_wildfire_coords, add_metadata_to_documents
 from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime, timedelta  # Add this import
+
+
 
 # MongoDB setup
 uri = os.environ.get('MONGO_API')
@@ -26,7 +28,7 @@ scheduler = BackgroundScheduler()
 def run_update_job():
     print("Starting database update...")
     reset_and_add_wildfire_coords()
-    add_wind_data_to_documents()
+    add_metadata_to_documents()
     print("Database update completed.")
 
 # Schedule first run 24 hours from now, then every 24 hours
