@@ -53,3 +53,12 @@
 - One of our original ideas for the map GUI was to calculate the spread of each wildfire and display it on the map. However, this would require thousands of API requests to Gemini, which was not feasible within our budget. Instead, we decided to only show the spread of a wildfire if the user requests it for a specific marker.
 
 - The selection and configuration of the LLM model were also challenging, requiring trial and error when testing prompts to generate accurate descriptions of wildfires based on the collected data and the spread depicted on the map. Since Cohere and Gemini were utilized, different strategies in prompts were employed to configure each LLM.
+
+# Accomplishments That We're Proud Of
+The minimalist design of the graphical user interface (GUI), combined with smooth animations, makes the front-end program aesthetically pleasing and appealing to a broad range of users.
+
+The data gathered from the OpenWeatherMap API serves as a solid foundation for the large language models (LLMs) to generate decisions and predictions regarding wildfires. Specifically, this data is closely related to wildfire conditions, including rainfall and cloudiness.
+
+Speed was one of our team's strengths in this project. By dividing the work between front-end development, data gathering, and web server management in Python, we created a great synergy that allowed us to spend more time debugging and refining our project.
+
+
