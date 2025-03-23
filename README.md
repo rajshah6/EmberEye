@@ -1,5 +1,6 @@
 # Inspiration
 - UN Development Goal #13: Climate Action
+- When we focused on this goal, we wanted to provide a unique method of providing climate action through intelligent data collection.
 
 # How We Built It
 
