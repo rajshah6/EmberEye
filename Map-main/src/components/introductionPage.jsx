@@ -70,6 +70,10 @@ const IntroductionPage = () => {
   const [availableCountries, setAvailableCountries] = useState([]);
   const [showCountrySuggestions, setShowCountrySuggestions] = useState(false);
   const searchRef = useRef(null); // Reference for the search container
+  const [selectedCountry, setSelectedCountry] = useState(null); // Add state for selected country
+  const [countryAnalysis, setCountryAnalysis] = useState(""); // Add state for country analysis
+  const [isAnalyzing, setIsAnalyzing] = useState(false); // Add state for analysis loading
+  const [showCountryAnalysis, setShowCountryAnalysis] = useState(false); // Add state to control analysis modal
 
   mapboxgl.accessToken =
     "pk.eyJ1IjoiYXVta2FybWFsaSIsImEiOiJjbTNydmViNWYwMDEwMnJwdnhra3lqcTdiIn0.uENwb1XNsjEY1Y9DUWwslw";
@@ -182,11 +186,8 @@ const IntroductionPage = () => {
         mapRef.current.addSource(spreadAreaId, {
           type: "geojson",
           data: {
-            type: "Feature",
-            geometry: {
-              type: "Point",
-              coordinates: [data.longitude, data.latitude],
-            },
+            type: "Point",
+            coordinates: [data.longitude, data.latitude],
           },
         });
 
@@ -1107,7 +1108,184 @@ const IntroductionPage = () => {
   // Add a function to handle selecting a country from suggestions
   const handleSelectCountry = (country) => {
     handleSearch(country);
+    setSelectedCountry(country); // Set the selected country
     setShowCountrySuggestions(false); // Hide the suggestions after selection
+  };
+
+  // Add function to generate country analysis using Cohere
+  const generateCountryAnalysis = async () => {
+    if (!selectedCountry) return;
+
+    setIsAnalyzing(true);
+    setCountryAnalysis("");
+
+    try {
+      // Filter wildfires for the selected country
+      const countryWildfires = wildfires.filter(
+        (wildfire) =>
+          wildfire.country &&
+          wildfire.country.toLowerCase() === selectedCountry.toLowerCase()
+      );
+
+      // Get unique states in the country
+      const states = [
+        ...new Set(
+          countryWildfires
+            .filter((wildfire) => wildfire.state)
+            .map((wildfire) => wildfire.state)
+        ),
+      ];
+
+      // Calculate average environmental conditions
+      const avgTemp =
+        countryWildfires.reduce(
+          (sum, fire) => sum + (fire.temperature || 0),
+          0
+        ) / countryWildfires.length || 0;
+      const avgHumidity =
+        countryWildfires.reduce((sum, fire) => sum + (fire.humidity || 0), 0) /
+          countryWildfires.length || 0;
+      const avgWindSpeed =
+        countryWildfires.reduce(
+          (sum, fire) => sum + (fire.wind_speed || 0),
+          0
+        ) / countryWildfires.length || 0;
+
+      // Build the prompt with detailed information
+      const prompt = `Analyze wildfires in ${selectedCountry}. 
+I have data on ${countryWildfires.length} fire incidents across ${
+        states.length
+      } regions/states: ${states.join(", ")}. 
+Average conditions: temperature: ${avgTemp.toFixed(
+        1
+      )}°C, humidity: ${avgHumidity.toFixed(
+        1
+      )}%, wind speed: ${avgWindSpeed.toFixed(1)} m/s.
+
+Please provide:
+1. A summary of the current wildfire situation in ${selectedCountry}
+2. Analysis of the geographical distribution of fires
+3. Environmental factors contributing to fires in this country
+4. Prediction of future fire risks based on the data
+5. Recommendations for monitoring and prevention
+
+Keep the response structured, informative and around 200-300 words.`;
+
+      // Make request to Cohere API
+      const response = await fetch("https://api.cohere.ai/generate", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ExsK01ja38y8hutQyEYh9ymJzsVSa5ig1DgscgzY`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "command",
+          prompt: prompt,
+          max_tokens: 400,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data && data.text) {
+        setCountryAnalysis(data.text);
+        setShowCountryAnalysis(true);
+      }
+    } catch (error) {
+      console.error("Error generating country analysis:", error);
+      setCountryAnalysis("Failed to generate analysis. Please try again.");
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  // Add CountryAnalysisModal component
+  const CountryAnalysisModal = () => {
+    if (!showCountryAnalysis) return null;
+
+    return (
+      <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-60 backdrop-blur-sm p-4">
+        <div className="bg-gray-900 p-6 rounded-xl shadow-2xl w-full max-w-3xl mx-auto border border-gray-700 animate-fadein overflow-auto max-h-[95vh] my-2">
+          <div className="flex justify-between items-center mb-4 -m-6 p-4 bg-gradient-to-r from-indigo-800 to-indigo-900 rounded-t-xl shadow-md">
+            <div className="flex items-center">
+              <svg
+                className="w-6 h-6 text-blue-400 mr-2"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path d="M3 12v3c0 1.657 3.134 3 7 3s7-1.343 7-3v-3c0 1.657-3.134 3-7 3s-7-1.343-7-3z" />
+                <path d="M3 7v3c0 1.657 3.134 3 7 3s7-1.343 7-3V7c0 1.657-3.134 3-7 3S3 8.657 3 7z" />
+                <path d="M17 5c0 1.657-3.134 3-7 3S3 6.657 3 5s3.134-3 7-3 7 1.343 7 3z" />
+              </svg>
+              <div>
+                <h3 className="text-xl font-bold text-white">
+                  {selectedCountry} - Wildfire Analysis
+                </h3>
+                <p className="text-sm text-blue-300">
+                  AI-generated country overview
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowCountryAnalysis(false)}
+              className="text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 rounded-full p-1 transition-colors"
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
+
+          <div className="mt-6 bg-gray-800 p-4 rounded-lg border border-gray-700 text-gray-200">
+            {countryAnalysis ? (
+              <div className="whitespace-pre-wrap">{countryAnalysis}</div>
+            ) : (
+              <div className="flex items-center justify-center p-8">
+                <svg
+                  className="animate-spin h-8 w-8 text-blue-500"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end mt-4">
+            <button
+              onClick={() => setShowCountryAnalysis(false)}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   // Add click outside handler to close dropdown
@@ -1199,6 +1377,7 @@ const IntroductionPage = () => {
                 <button
                   onClick={() => {
                     handleSearch("");
+                    setSelectedCountry(null);
                     setShowCountrySuggestions(false);
                   }}
                   className="ml-2 bg-gray-700 p-2 rounded-full hover:bg-gray-600 text-gray-300"
@@ -1245,6 +1424,59 @@ const IntroductionPage = () => {
                 </div>
               )}
           </div>
+
+          {/* Add the country analysis button that appears when a country is selected */}
+          {selectedCountry && (
+            <div className="mt-3">
+              <button
+                onClick={generateCountryAnalysis}
+                disabled={isAnalyzing}
+                className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:from-indigo-700 hover:to-purple-700 transition duration-200 flex items-center justify-center"
+              >
+                {isAnalyzing ? (
+                  <>
+                    <svg
+                      className="animate-spin -ml-1 mr-2 h-5 w-5 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    Analyzing {selectedCountry}...
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      className="w-5 h-5 mr-2"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                      <path
+                        fillRule="evenodd"
+                        d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    Analyze {selectedCountry} Fire Risk
+                  </>
+                )}
+              </button>
+            </div>
+          )}
 
           <div className="mt-4">
             {currentLocation && closestWildfire && (
@@ -1455,6 +1687,7 @@ const IntroductionPage = () => {
           style={{ ...mapStyles.absoluteFill, ...mapStyles.mapContainer }}
         />
         <MarkerPopup />
+        <CountryAnalysisModal /> {/* Add the country analysis modal */}
       </div>
     </div>
   );
