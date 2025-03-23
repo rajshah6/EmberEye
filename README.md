@@ -78,4 +78,9 @@ Security & Best Practices: Emphasized securing sensitive data through environmen
 
 Collaboration & Time Management: Learned how dividing tasks between team members (front-end, data gathering, server management) led to efficient development and problem-solving.
 
+# Whats Next
+What's Next for Perch
+- Expanded Input Support: Enable users to upload a variety of file types, including videos, PDFs, and other formats, to enhance the types of content that can be analyzed and processed.
+
+- Multi-language and Accent Support: Expand the system's capabilities to support more languages and accents, making the platform more inclusive and adaptable for global users.
 
