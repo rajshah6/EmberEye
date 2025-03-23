@@ -19,6 +19,28 @@ const mapStyles = {
   },
 };
 
+// Add custom animation keyframes
+const animationStyles = `
+  @keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  
+  @keyframes pulseSlow {
+    0% { opacity: 0.6; }
+    50% { opacity: 1; }
+    100% { opacity: 0.6; }
+  }
+  
+  .animate-fadein {
+    animation: fadeIn 0.2s ease-out forwards;
+  }
+  
+  .animate-pulse-slow {
+    animation: pulseSlow 2s infinite ease-in-out;
+  }
+`;
+
 const IntroductionPage = () => {
   const [wildfires, setWildfires] = useState([]);
   const [locationError, setLocationError] = useState("");
@@ -277,11 +299,26 @@ const IntroductionPage = () => {
               .addTo(mapRef.current);
 
             marker.getElement().addEventListener("click", () => {
-              setSelectedMarker({
-                ...item,
-                markerType: "wildfire",
+              // Fly to the marker location first
+              mapRef.current.flyTo({
+                center: [longitude, latitude],
+                zoom: 12,
+                speed: 1.5,
               });
-              setShowPopup(true);
+              
+              // Then show the popup after animation completes
+              const handleMoveEnd = () => {
+                setSelectedMarker({
+                  ...item,
+                  markerType: "wildfire",
+                });
+                setShowPopup(true);
+                
+                // Remove the event listener after it's triggered
+                mapRef.current.off("moveend", handleMoveEnd);
+              };
+              
+              mapRef.current.on("moveend", handleMoveEnd);
             });
 
             markersRef.current.push(marker);
@@ -431,7 +468,8 @@ const IntroductionPage = () => {
     if (!selectedMarker || !showPopup) return null;
 
     const isWildfire = selectedMarker.markerType === "wildfire";
-    const headerColor = isWildfire ? "bg-gray-800" : "bg-red-800";
+    const headerColor = isWildfire ? "bg-gradient-to-r from-gray-800 to-gray-900" : "bg-gradient-to-r from-red-800 to-red-900";
+    const dangerLevel = calculateDangerPercentage(selectedMarker);
 
     const fetchCohereData = async () => {
       try {
@@ -466,35 +504,93 @@ const IntroductionPage = () => {
     };
 
     return (
-      <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
-        <div className="bg-gray-800 p-6 rounded-lg shadow-lg max-w-md w-full border border-gray-700">
+      <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-60 backdrop-blur-sm p-4">
+        <div className="bg-gray-900 p-6 rounded-xl shadow-2xl w-full max-w-3xl mx-auto border border-gray-700 animate-fadein overflow-auto max-h-[95vh] my-2">
           <div
-            className={`flex justify-between items-start mb-4 -m-6 p-4 ${headerColor} rounded-t-lg`}
+            className={`flex justify-between items-center mb-4 -m-6 p-4 ${headerColor} rounded-t-xl shadow-md`}
           >
-            <h3 className="text-xl font-bold text-white">Wildfire Analysis</h3>
+            <div className="flex items-center">
+              <svg className="w-6 h-6 text-red-500 mr-2 animate-pulse-slow" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12,23c-1.7,0-3-1.3-3-3c0-1.9,3-6,3-6s3,4.1,3,6C15,21.7,13.7,23,12,23z M17,10c0-1.9,3-6,3-6s3,4.1,3,6c0,1.7-1.3,3-3,3 S17,11.7,17,10z M7,10c0-1.9,3-6,3-6s3,4.1,3,6c0,1.7-1.3,3-3,3S7,11.7,7,10z M4,14c0-1.9,3-6,3-6s3,4.1,3,6c0,1.7-1.3,3-3,3 S4,15.7,4,14z M12,2c0,0,3,4.1,3,6c0,1.7-1.3,3-3,3S9,9.7,9,8C9,6.1,12,2,12,2z"/>
+              </svg>
+              <h3 className="text-xl font-bold text-white">Wildfire Analysis</h3>
+            </div>
             <button
               onClick={() => setShowPopup(false)}
-              className="text-gray-400 hover:text-white"
+              className="text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 rounded-full p-1 transition-colors"
             >
-              ✕
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
             </button>
           </div>
 
           <div className="text-gray-300 mb-4 mt-6">
-            <div className="mb-4 bg-gray-700 p-3 rounded-lg">
-              <h4 className="text-lg font-semibold mb-2 text-white">
+            {/* Risk Level Indicator */}
+            <div className="mb-6 bg-gray-800 p-3 rounded-lg border border-gray-700">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-md font-semibold text-white">Risk Assessment</h4>
+                <span className="text-white font-bold px-2 py-1 rounded-full text-sm" 
+                  style={{
+                    backgroundColor: 
+                      dangerLevel < 30 ? 'rgba(34, 197, 94, 0.3)' : 
+                      dangerLevel < 70 ? 'rgba(250, 204, 21, 0.3)' : 
+                      'rgba(239, 68, 68, 0.3)',
+                    color: 
+                      dangerLevel < 30 ? 'rgb(34, 197, 94)' : 
+                      dangerLevel < 70 ? 'rgb(250, 204, 21)' : 
+                      'rgb(239, 68, 68)'
+                  }}>
+                  {dangerLevel}% Risk
+                </span>
+              </div>
+              <div className="h-3 w-full bg-gray-700 rounded-full overflow-hidden">
+                <div 
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{
+                    width: `${dangerLevel}%`,
+                    background: `linear-gradient(90deg, 
+                      rgb(34, 197, 94) 0%, 
+                      rgb(250, 204, 21) 50%, 
+                      rgb(239, 68, 68) 100%)`,
+                    backgroundSize: '300% 100%',
+                    backgroundPosition: `${100 - dangerLevel}% 0`
+                  }}
+                ></div>
+              </div>
+              <p className="mt-2 text-sm">
+                {dangerLevel < 30 ? 
+                  "Low risk. Monitor for changes." :
+                  dangerLevel < 70 ?
+                    "Moderate risk. Stay informed." :
+                    "High risk. Be prepared to evacuate."
+                }
+              </p>
+            </div>
+            
+            {/* AI Insights Section */}
+            <div className="mb-4 bg-gray-800 p-4 rounded-lg border border-gray-700">
+              <h4 className="text-lg font-semibold mb-3 text-white flex items-center">
+                <svg className="w-5 h-5 mr-2 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
                 AI Insights
               </h4>
               {error ? (
-                <p className="text-red-400">{error}</p>
+                <div className="text-red-400 p-3 bg-red-900/20 rounded-md flex items-center">
+                  <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                  {error}
+                </div>
               ) : aiDescription ? (
-                <div className="text-gray-200 whitespace-pre-wrap">
+                <div className="text-gray-200 whitespace-pre-wrap p-3 bg-blue-900/10 rounded-md border border-blue-900/20">
                   {aiDescription}
                 </div>
               ) : isLoading ? (
-                <div className="flex items-center gap-2 text-gray-400">
+                <div className="flex items-center justify-center gap-2 text-gray-400 p-6">
                   <svg
-                    className="animate-spin h-5 w-5"
+                    className="animate-spin h-6 w-6"
                     xmlns="http://www.w3.org/2000/svg"
                     fill="none"
                     viewBox="0 0 24 24"
@@ -513,68 +609,126 @@ const IntroductionPage = () => {
                       d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                     ></path>
                   </svg>
-                  Generating insights...
+                  <span>Generating insights...</span>
                 </div>
               ) : (
-                <p className="text-gray-400">
-                  Click "Generate Insights" for AI analysis
-                </p>
+                <div className="flex flex-col items-center justify-center p-4 bg-gray-700/30 rounded-md text-gray-400">
+                  <svg className="w-8 h-8 mb-2 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                  </svg>
+                  <p className="text-center">Click "Generate Insights" for AI analysis of this wildfire</p>
+                </div>
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p>
-                  <strong>Location:</strong>{" "}
-                  {formatCoordinates(selectedMarker.location)}
-                </p>
-                <p className="mt-2">
-                  <strong>Temperature:</strong> {selectedMarker.temperature}°C
-                </p>
-                <p className="mt-2">
-                  <strong>Humidity:</strong> {selectedMarker.humidity}%
-                </p>
+            {/* Wildfire Details Section */}
+            <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
+              <h4 className="text-lg font-semibold mb-3 text-white flex items-center">
+                <svg className="w-5 h-5 mr-2 text-orange-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zM12 2a1 1 0 01.967.744L14.146 7.2 17.5 9.134a1 1 0 010 1.732l-3.354 1.935-1.18 4.455a1 1 0 01-1.933 0L9.854 12.8 6.5 10.866a1 1 0 010-1.732l3.354-1.935 1.18-4.455A1 1 0 0112 2z" clipRule="evenodd" />
+                </svg>
+                Weather & Location Data
+              </h4>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-3">
+                  <div className="flex items-center">
+                    <svg className="w-4 h-4 mr-2 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                    </svg>
+                    <div>
+                      <p className="text-xs text-gray-500">Location</p>
+                      <p className="text-sm">{formatCoordinates(selectedMarker.location)}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center">
+                    <svg className="w-4 h-4 mr-2 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                    </svg>
+                    <div>
+                      <p className="text-xs text-gray-500">Temperature</p>
+                      <p className="text-sm">{selectedMarker.temperature}°C</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center">
+                    <svg className="w-4 h-4 mr-2 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zM12 2a1 1 0 01.967.744L14.146 7.2 17.5 9.134a1 1 0 010 1.732l-3.354 1.935-1.18 4.455a1 1 0 01-1.933 0L9.854 12.8 6.5 10.866a1 1 0 010-1.732l3.354-1.935 1.18-4.455A1 1 0 0112 2z" clipRule="evenodd" />
+                    </svg>
+                    <div>
+                      <p className="text-xs text-gray-500">Humidity</p>
+                      <p className="text-sm">{selectedMarker.humidity}%</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex items-center">
+                    <svg className="w-4 h-4 mr-2 text-teal-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zM12 2a1 1 0 01.967.744L14.146 7.2 17.5 9.134a1 1 0 010 1.732l-3.354 1.935-1.18 4.455a1 1 0 01-1.933 0L9.854 12.8 6.5 10.866a1 1 0 010-1.732l3.354-1.935 1.18-4.455A1 1 0 0112 2z" clipRule="evenodd" />
+                    </svg>
+                    <div>
+                      <p className="text-xs text-gray-500">Wind Speed</p>
+                      <p className="text-sm">{selectedMarker.wind_speed} m/s</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center">
+                    <svg className="w-4 h-4 mr-2 text-teal-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zM12 2a1 1 0 01.967.744L14.146 7.2 17.5 9.134a1 1 0 010 1.732l-3.354 1.935-1.18 4.455a1 1 0 01-1.933 0L9.854 12.8 6.5 10.866a1 1 0 010-1.732l3.354-1.935 1.18-4.455A1 1 0 0112 2z" clipRule="evenodd" />
+                    </svg>
+                    <div>
+                      <p className="text-xs text-gray-500">Wind Gust</p>
+                      <p className="text-sm">{selectedMarker.wind_gust} m/s</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center">
+                    <svg className="w-4 h-4 mr-2 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zM12 2a1 1 0 01.967.744L14.146 7.2 17.5 9.134a1 1 0 010 1.732l-3.354 1.935-1.18 4.455a1 1 0 01-1.933 0L9.854 12.8 6.5 10.866a1 1 0 010-1.732l3.354-1.935 1.18-4.455A1 1 0 0112 2z" clipRule="evenodd" />
+                    </svg>
+                    <div>
+                      <p className="text-xs text-gray-500">Cloud Cover</p>
+                      <p className="text-sm">{selectedMarker.clouds}%</p>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div>
-                <p>
-                  <strong>Wind Speed:</strong> {selectedMarker.wind_speed} m/s
-                </p>
-                <p className="mt-2">
-                  <strong>Wind Gust:</strong> {selectedMarker.wind_gust} m/s
-                </p>
-                <p className="mt-2">
-                  <strong>Wind Direction:</strong>{" "}
-                  {selectedMarker.wind_direction}°
-                </p>
-                <p className="mt-2">
-                  <strong>Rain:</strong> {selectedMarker.rain}mm
-                </p>
+              <div className="mt-3 flex items-center">
+                <svg className="w-4 h-4 mr-2 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zM12 2a1 1 0 01.967.744L14.146 7.2 17.5 9.134a1 1 0 010 1.732l-3.354 1.935-1.18 4.455a1 1 0 01-1.933 0L9.854 12.8 6.5 10.866a1 1 0 010-1.732l3.354-1.935 1.18-4.455A1 1 0 0112 2z" clipRule="evenodd" />
+                </svg>
+                <div>
+                  <p className="text-xs text-gray-500">Rainfall</p>
+                  <p className="text-sm">{selectedMarker.rain}mm</p>
+                </div>
               </div>
-            </div>
-            <div className="mt-4">
-              <p>
-                <strong>Cloud Cover:</strong> {selectedMarker.clouds}%
-              </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 mt-4">
             <button
               onClick={fetchCohereData}
-              className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg disabled:opacity-50"
+              className="bg-gradient-to-r from-green-600 to-green-700 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:from-green-700 hover:to-green-800 disabled:opacity-50 transition-all duration-200 flex items-center"
               disabled={isLoading}
             >
+              {isLoading ? (
+                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              ) : (
+                <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+              )}
               {aiDescription ? "Regenerate" : "Generate Insights"}
             </button>
             <button
               onClick={fetchSpreadData}
-              className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg disabled:opacity-50"
+              className="bg-gradient-to-r from-red-600 to-red-700 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:from-red-700 hover:to-red-800 disabled:opacity-50 transition-all duration-200 flex items-center"
               disabled={isSpreadLoading}
             >
               {isSpreadLoading ? (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center">
                   <svg
-                    className="animate-spin h-4 w-4"
+                    className="animate-spin -ml-1 mr-2 h-4 w-4"
                     xmlns="http://www.w3.org/2000/svg"
                     fill="none"
                     viewBox="0 0 24 24"
@@ -596,13 +750,21 @@ const IntroductionPage = () => {
                   Spreading...
                 </div>
               ) : (
-                "Spread"
+                <>
+                  <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clipRule="evenodd" />
+                  </svg>
+                  Show Spread
+                </>
               )}
             </button>
             <button
               onClick={() => setShowPopup(false)}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg"
+              className="bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:from-blue-700 hover:to-blue-800 transition-all duration-200 flex-grow flex justify-center items-center"
             >
+              <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
               Close
             </button>
           </div>
@@ -727,6 +889,9 @@ const IntroductionPage = () => {
 
   return (
     <div className="flex h-screen overflow-auto bg-gray-900">
+      {/* Apply custom animations */}
+      <style>{animationStyles}</style>
+      
       {/* Sidebar */}
       <div className="w-1/3 p-8 flex flex-col h-full overflow-y-auto">
         {/* Header section */}
