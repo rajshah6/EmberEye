@@ -1,6 +1,6 @@
 
 
-# Inspiration
+# Inspiration and Project: https://ember-eye.vercel.app/
 - UN Development Goal #13: Climate Action
 - When we focused on this goal, we wanted to provide a unique method of providing climate action through intelligent data collection.
 - Google recently launched the first satellite of its FireSat constellation, designed to detect wildfires using advanced infrared sensors and AI. With plans to deploy over 50 satellites by 2030, FireSat aims to identify fires as small as 5x5 meters within minutes. While this is a groundbreaking step in wildfire detection, it comes with a massive budget. Inspired by this innovation, we set out to develop a more affordable AI-driven approach to wildfire monitoring.
